@@ -31,6 +31,7 @@ interface OrbitControlsApi {
 interface CameraTransition {
   startedAt: number;
   duration: number;
+  alignmentDuration: number;
   fromPosition: Vector3;
   toPosition: Vector3;
   fromTarget: Vector3;
@@ -40,8 +41,13 @@ interface CameraTransition {
 
 const default3DPosition = new Vector3(6.2, 9.4, 10.8);
 const boardCenter = new Vector3(0, 0, 0);
-const topDownPosition = new Vector3(0, 14.5, 0);
+const topDownHeight = 14.5;
+const topDownZ = 0.02;
+const topDownPosition = new Vector3(0, topDownHeight, topDownZ);
+const defaultCameraUp = new Vector3(0, 1, 0);
 const transitionDuration = 850;
+const cameraAlignmentDuration = 1200;
+const topDownPolarAngle = Math.atan2(topDownZ, topDownHeight);
 
 function SceneCameraRig({
   resetKey,
@@ -76,6 +82,7 @@ function SceneCameraRig({
       transition.current = {
         startedAt: clock.elapsedTime,
         duration: transitionDuration / 1000,
+        alignmentDuration: cameraAlignmentDuration / 1000,
         fromPosition: camera.position.clone(),
         toPosition: topDownPosition.clone(),
         fromTarget: activeControls.target.clone(),
@@ -90,6 +97,7 @@ function SceneCameraRig({
       transition.current = {
         startedAt: clock.elapsedTime,
         duration: transitionDuration / 1000,
+        alignmentDuration: transitionDuration / 1000,
         fromPosition: camera.position.clone(),
         toPosition: returnView.position.clone(),
         fromTarget: activeControls.target.clone(),
@@ -116,6 +124,7 @@ function SceneCameraRig({
     if (!activeControls) return;
 
     if (viewMode === "2d") {
+      camera.up.copy(defaultCameraUp);
       camera.position.copy(topDownPosition);
       activeControls.target.copy(boardCenter);
       camera.lookAt(boardCenter);
@@ -125,6 +134,7 @@ function SceneCameraRig({
         target: boardCenter.clone(),
       };
     } else if (viewMode === "3d") {
+      camera.up.copy(defaultCameraUp);
       activeControls.reset();
       saved3DView.current = null;
     }
@@ -135,30 +145,48 @@ function SceneCameraRig({
     const activeControls = controls.current;
     if (!activeTransition || !activeControls) return;
 
+    const elapsed = clock.elapsedTime - activeTransition.startedAt;
     const progress = Math.min(
-      (clock.elapsedTime - activeTransition.startedAt) / activeTransition.duration,
+      elapsed / activeTransition.duration,
       1,
     );
+    const alignmentProgress = Math.min(elapsed / activeTransition.alignmentDuration, 1);
     const eased = progress < 0.5
       ? 4 * progress * progress * progress
       : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+    const easedAlignment = alignmentProgress < 0.5
+      ? 4 * alignmentProgress * alignmentProgress * alignmentProgress
+      : 1 - Math.pow(-2 * alignmentProgress + 2, 3) / 2;
 
-    camera.position.lerpVectors(
-      activeTransition.fromPosition,
-      activeTransition.toPosition,
-      eased,
-    );
+    if (activeTransition.toMode === "2d") {
+      camera.position.set(
+        activeTransition.fromPosition.x + (activeTransition.toPosition.x - activeTransition.fromPosition.x) * eased,
+        activeTransition.fromPosition.y + (activeTransition.toPosition.y - activeTransition.fromPosition.y) * eased,
+        activeTransition.fromPosition.z + (activeTransition.toPosition.z - activeTransition.fromPosition.z) * easedAlignment,
+      );
+    } else {
+      camera.position.lerpVectors(
+        activeTransition.fromPosition,
+        activeTransition.toPosition,
+        eased,
+      );
+    }
+    if (activeTransition.toMode === "2d") {
+      camera.position.y = Math.max(camera.position.y, 0.1);
+    }
     activeControls.target.lerpVectors(
       activeTransition.fromTarget,
       activeTransition.toTarget,
       eased,
     );
-    activeControls.update();
+    camera.up.copy(defaultCameraUp);
+    camera.lookAt(activeControls.target);
     flattenProgress.current = activeTransition.toMode === "2d" ? eased : 1 - eased;
 
-    if (progress >= 1) {
+    if (progress >= 1 && alignmentProgress >= 1) {
       camera.position.copy(activeTransition.toPosition);
       activeControls.target.copy(activeTransition.toTarget);
+      camera.up.copy(defaultCameraUp);
       activeControls.update();
       flattenProgress.current = activeTransition.toMode === "2d" ? 1 : 0;
       transition.current = null;
@@ -180,8 +208,8 @@ function SceneCameraRig({
       enablePan={false}
       minDistance={is2D ? 11 : 8.1}
       maxDistance={18}
-      minPolarAngle={viewMode === "3d" ? 0.52 : 0.001}
-      maxPolarAngle={is2D ? 0.001 : viewMode === "3d" ? 1.28 : Math.PI}
+      minPolarAngle={is2D ? topDownPolarAngle : viewMode === "3d" ? 0.52 : 0.001}
+      maxPolarAngle={is2D ? topDownPolarAngle : viewMode === "3d" ? 1.28 : Math.PI}
     />
   );
 }
@@ -229,3 +257,5 @@ export function ChessScene(props: ChessSceneProps) {
     </Canvas>
   );
 }
+
+
