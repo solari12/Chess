@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: "Segoe UI Variable", "Segoe UI", Arial, ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Bahnschrift", "Segoe UI Variable", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  color-scheme: light;
+  --paper: #efede6;
+  --ink: #292d29;
+  --muted: #706f65;
+  --line: #d5cebf;
+  --olive: #48563c;
+  --copper: #a87643;
+}
+
+* { box-sizing: border-box; }
+html { min-height: 100%; background: var(--paper); }
+body {
+  min-height: 100vh;
+  margin: 0;
+  background:
+    linear-gradient(#6f684f0b 1px, transparent 1px),
+    linear-gradient(90deg, #6f684f0b 1px, transparent 1px),
+    radial-gradient(ellipse at 50% -30%, #fffdf5 0, transparent 50rem),
+    var(--paper);
+  background-size: 32px 32px, 32px 32px, auto, auto;
+  color: var(--ink);
+  font-family: "Segoe UI Variable", "Segoe UI", Arial, ui-sans-serif, system-ui, sans-serif;
+}
+button { cursor: pointer; }
+button:focus-visible, [tabindex]:focus-visible { outline: 3px solid #a87643; outline-offset: 3px; }
+::selection { background: #c2d09f; color: #26301d; }
+.chess-canvas canvas { display: block; outline: none; }
+.move-scroll { scrollbar-color: #b5aa94 transparent; scrollbar-width: thin; }
+.move-scroll::-webkit-scrollbar { width: 6px; }
+.move-scroll::-webkit-scrollbar-thumb { border-radius: 99px; background: #b5aa94; }
+.scene-loading { display: grid; min-height: 420px; place-items: center; border-radius: 14px; background: linear-gradient(145deg,#5b5548,#373a32); color: #f7f3e8; }
+@media (max-width: 640px) { .scene-loading { min-height: 330px; } }
+@media (prefers-reduced-motion: reduce) { *,*::before,*::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
+
