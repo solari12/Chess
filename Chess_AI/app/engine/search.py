@@ -2,6 +2,7 @@
 
 import chess
 
+from app.engine.alpha_beta import alpha_beta
 from app.engine.minimax import minimax
 from app.schemas.chess import AIRequest, AIResponse
 
@@ -16,16 +17,18 @@ def search(request: AIRequest) -> AIResponse:
     if not board.is_valid():
         raise ValueError("FEN does not describe a valid chess position")
 
-    if request.algorithm == "alpha_beta":
-        raise NotImplementedError("Alpha-Beta search has not been implemented")
-
-    result = minimax(board, request.depth)
+    if request.algorithm == "minimax":
+        result = minimax(board, request.depth)
+        response_algorithm = "minimax"
+    else:
+        result = alpha_beta(board, request.depth)
+        response_algorithm = "alpha-beta"
     if result.move is None:
         raise ValueError("The position is terminal and has no legal move")
 
     return AIResponse(
         move=result.move.uci(),
-        algorithm=request.algorithm,
+        algorithm=response_algorithm,
         depth=request.depth,
         score=result.score,
         nodes=result.nodes,

@@ -16,7 +16,5 @@ def get_ai_move(request: AIRequest) -> AIResponse:
     """Run the requested search and return a UCI move with statistics."""
     try:
         return search(request)
-    except NotImplementedError as error:
-        raise HTTPException(status_code=501, detail=str(error)) from error
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error

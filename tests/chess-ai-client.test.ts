@@ -15,9 +15,10 @@ describe("chess AI client", () => {
   });
 
   it.each(["minimax", "alpha_beta"] as const)("requests an AI move for %s", async (role) => {
+    const apiAlgorithm = role === "alpha_beta" ? "alpha-beta" : role;
     const responseData = {
       move: "e2e4",
-      algorithm: role,
+      algorithm: apiAlgorithm,
       depth: 3,
       score: 0,
       nodes: 123,

@@ -20,7 +20,7 @@ export function parseUciMove(uci: string): ParsedUciMove | null {
 
 export interface AIResponse {
   move: string;
-  algorithm: "minimax" | "alpha_beta";
+  algorithm: "minimax" | "alpha-beta";
   depth: number;
   score: number;
   nodes: number;
@@ -55,10 +55,16 @@ export async function requestAIMove(
     !("move" in result) ||
     typeof result.move !== "string" ||
     !("algorithm" in result) ||
-    result.algorithm !== role
+    typeof result.algorithm !== "string"
   ) {
     throw new Error("Chess AI returned an invalid response");
   }
 
-  return result as AIResponse;
+  const responseAlgorithm = result.algorithm === "alpha_beta" ? "alpha-beta" : result.algorithm;
+  const expectedAlgorithm = role === "alpha_beta" ? "alpha-beta" : role;
+  if (responseAlgorithm !== expectedAlgorithm) {
+    throw new Error("Chess AI returned an invalid response");
+  }
+
+  return { ...result, algorithm: responseAlgorithm } as AIResponse;
 }
