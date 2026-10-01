@@ -187,6 +187,16 @@ def generate_target(record: dict[str, Any], config: TeacherConfig = TeacherConfi
             else:
                 break
 
+    # Preserve the heuristic's selected depth and unbounded observed time for
+    # offline diagnostics. These fields do not participate in label selection
+    # or alter the final capped teacher target below.
+    natural_teacher_depth = teacher_depth
+    natural_teacher_time_ms = (
+        _required_number(profiles[natural_teacher_depth - 1], "time_ms")
+        if natural_teacher_depth is not None
+        else None
+    )
+
     usable_clock_ms = max(0.0, remaining_time - config.clock_safety_margin_ms)
     if teacher_depth is not None and usable_clock_ms <= 0:
         teacher_depth = None
@@ -215,6 +225,8 @@ def generate_target(record: dict[str, Any], config: TeacherConfig = TeacherConfi
     return {
         "teacher_depth": teacher_depth,
         "teacher_time_ms": teacher_time_ms,
+        "natural_teacher_depth": natural_teacher_depth,
+        "natural_teacher_time_ms": natural_teacher_time_ms,
         "teacher_confidence": confidence,
         "information_gain_score": average_gain,
         "selected_transition_gain": (

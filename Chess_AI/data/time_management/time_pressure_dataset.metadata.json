@@ -1,0 +1,38 @@
+{
+  "dataset_version": "0.1",
+  "generator_version": "phase-2a",
+  "seed": 42,
+  "games": 4,
+  "sampling_interval": 4,
+  "game_generation_depth": 2,
+  "game_candidate_count": 3,
+  "max_plies": 24,
+  "analysis_budget_ms": 1000,
+  "max_analysis_depth": 6,
+  "remaining_times_ms": [
+    30000,
+    10000,
+    5000,
+    3000,
+    2000,
+    1500,
+    1000,
+    750,
+    500,
+    300
+  ],
+  "evaluation_profile": "default",
+  "pgn_source": null,
+  "position_source": "engine_games+starting_position",
+  "telemetry_sampling": "one Phase 2A probe per FEN, replicated across synthetic clock variants",
+  "phase": "2E",
+  "purpose": "synthetic low-clock teacher cap validation",
+  "dataset_summary": {
+    "sampled_positions": 22,
+    "clock_variants": 10,
+    "dataset_records": 220,
+    "average_completed_depth": 3.0454545454545454,
+    "average_search_time_ms": 953.136363627643,
+    "timeout_rate": 1.0
+  }
+}

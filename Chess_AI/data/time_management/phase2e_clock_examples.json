@@ -1,0 +1,403 @@
+{
+  "phase": "2E",
+  "top_clock_pressure_changes": [
+    {
+      "fen": "r1bqkb1r/pppppppp/n6n/3N4/8/8/PPPPPPPP/R1BQKBNR w KQkq - 4 3",
+      "clock_targets": [
+        {
+          "remaining_time_ms": 500,
+          "teacher_time_ms": 200.0,
+          "natural_teacher_time_ms": 547.0000000204891,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 750,
+          "teacher_time_ms": 450.0,
+          "natural_teacher_time_ms": 547.0000000204891,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 1000,
+          "teacher_time_ms": 547.0000000204891,
+          "natural_teacher_time_ms": 547.0000000204891,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 1500,
+          "teacher_time_ms": 547.0000000204891,
+          "natural_teacher_time_ms": 547.0000000204891,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 2000,
+          "teacher_time_ms": 547.0000000204891,
+          "natural_teacher_time_ms": 547.0000000204891,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 3000,
+          "teacher_time_ms": 547.0000000204891,
+          "natural_teacher_time_ms": 547.0000000204891,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 5000,
+          "teacher_time_ms": 547.0000000204891,
+          "natural_teacher_time_ms": 547.0000000204891,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 10000,
+          "teacher_time_ms": 547.0000000204891,
+          "natural_teacher_time_ms": 547.0000000204891,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 30000,
+          "teacher_time_ms": 547.0000000204891,
+          "natural_teacher_time_ms": 547.0000000204891,
+          "label_status": "labeled"
+        }
+      ]
+    },
+    {
+      "fen": "r1bqkb1r/pppppppp/n6n/3N4/8/8/PPPPPPPP/R1BQKBNR w KQq - 8 5",
+      "clock_targets": [
+        {
+          "remaining_time_ms": 500,
+          "teacher_time_ms": 200.0,
+          "natural_teacher_time_ms": 500.0,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 750,
+          "teacher_time_ms": 450.0,
+          "natural_teacher_time_ms": 500.0,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 1000,
+          "teacher_time_ms": 500.0,
+          "natural_teacher_time_ms": 500.0,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 1500,
+          "teacher_time_ms": 500.0,
+          "natural_teacher_time_ms": 500.0,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 2000,
+          "teacher_time_ms": 500.0,
+          "natural_teacher_time_ms": 500.0,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 3000,
+          "teacher_time_ms": 500.0,
+          "natural_teacher_time_ms": 500.0,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 5000,
+          "teacher_time_ms": 500.0,
+          "natural_teacher_time_ms": 500.0,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 10000,
+          "teacher_time_ms": 500.0,
+          "natural_teacher_time_ms": 500.0,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 30000,
+          "teacher_time_ms": 500.0,
+          "natural_teacher_time_ms": 500.0,
+          "label_status": "labeled"
+        }
+      ]
+    },
+    {
+      "fen": "r1bqkbr1/pppppppp/n7/5n2/4N3/8/PPPPPPPP/R1BQKBNR w KQq - 12 7",
+      "clock_targets": [
+        {
+          "remaining_time_ms": 500,
+          "teacher_time_ms": 200.0,
+          "natural_teacher_time_ms": 422.0000000204891,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 750,
+          "teacher_time_ms": 422.0000000204891,
+          "natural_teacher_time_ms": 422.0000000204891,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 1000,
+          "teacher_time_ms": 422.0000000204891,
+          "natural_teacher_time_ms": 422.0000000204891,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 1500,
+          "teacher_time_ms": 422.0000000204891,
+          "natural_teacher_time_ms": 422.0000000204891,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 2000,
+          "teacher_time_ms": 422.0000000204891,
+          "natural_teacher_time_ms": 422.0000000204891,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 3000,
+          "teacher_time_ms": 422.0000000204891,
+          "natural_teacher_time_ms": 422.0000000204891,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 5000,
+          "teacher_time_ms": 422.0000000204891,
+          "natural_teacher_time_ms": 422.0000000204891,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 10000,
+          "teacher_time_ms": 422.0000000204891,
+          "natural_teacher_time_ms": 422.0000000204891,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 30000,
+          "teacher_time_ms": 422.0000000204891,
+          "natural_teacher_time_ms": 422.0000000204891,
+          "label_status": "labeled"
+        }
+      ]
+    }
+  ],
+  "top_clock_pressure_no_change": [
+    {
+      "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "clock_targets": [
+        {
+          "remaining_time_ms": 500,
+          "teacher_time_ms": 31.999999890103936,
+          "natural_teacher_time_ms": 31.999999890103936,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 750,
+          "teacher_time_ms": 31.999999890103936,
+          "natural_teacher_time_ms": 31.999999890103936,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 1000,
+          "teacher_time_ms": 31.999999890103936,
+          "natural_teacher_time_ms": 31.999999890103936,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 1500,
+          "teacher_time_ms": 31.999999890103936,
+          "natural_teacher_time_ms": 31.999999890103936,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 2000,
+          "teacher_time_ms": 31.999999890103936,
+          "natural_teacher_time_ms": 31.999999890103936,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 3000,
+          "teacher_time_ms": 31.999999890103936,
+          "natural_teacher_time_ms": 31.999999890103936,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 5000,
+          "teacher_time_ms": 31.999999890103936,
+          "natural_teacher_time_ms": 31.999999890103936,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 10000,
+          "teacher_time_ms": 31.999999890103936,
+          "natural_teacher_time_ms": 31.999999890103936,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 30000,
+          "teacher_time_ms": 31.999999890103936,
+          "natural_teacher_time_ms": 31.999999890103936,
+          "label_status": "labeled"
+        }
+      ]
+    },
+    {
+      "fen": "r1bqkb1r/pppppppp/2n2n2/8/5N2/8/PPPPPPPP/RNBQKB1R w KQkq - 4 3",
+      "clock_targets": [
+        {
+          "remaining_time_ms": 500,
+          "teacher_time_ms": 61.99999991804361,
+          "natural_teacher_time_ms": 61.99999991804361,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 750,
+          "teacher_time_ms": 61.99999991804361,
+          "natural_teacher_time_ms": 61.99999991804361,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 1000,
+          "teacher_time_ms": 61.99999991804361,
+          "natural_teacher_time_ms": 61.99999991804361,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 1500,
+          "teacher_time_ms": 61.99999991804361,
+          "natural_teacher_time_ms": 61.99999991804361,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 2000,
+          "teacher_time_ms": 61.99999991804361,
+          "natural_teacher_time_ms": 61.99999991804361,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 3000,
+          "teacher_time_ms": 61.99999991804361,
+          "natural_teacher_time_ms": 61.99999991804361,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 5000,
+          "teacher_time_ms": 61.99999991804361,
+          "natural_teacher_time_ms": 61.99999991804361,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 10000,
+          "teacher_time_ms": 61.99999991804361,
+          "natural_teacher_time_ms": 61.99999991804361,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 30000,
+          "teacher_time_ms": 61.99999991804361,
+          "natural_teacher_time_ms": 61.99999991804361,
+          "label_status": "labeled"
+        }
+      ]
+    },
+    {
+      "fen": "r1bqkb1r/pppppppp/2n2n2/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 4 3",
+      "clock_targets": [
+        {
+          "remaining_time_ms": 500,
+          "teacher_time_ms": 31.999999890103936,
+          "natural_teacher_time_ms": 31.999999890103936,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 750,
+          "teacher_time_ms": 31.999999890103936,
+          "natural_teacher_time_ms": 31.999999890103936,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 1000,
+          "teacher_time_ms": 31.999999890103936,
+          "natural_teacher_time_ms": 31.999999890103936,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 1500,
+          "teacher_time_ms": 31.999999890103936,
+          "natural_teacher_time_ms": 31.999999890103936,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 2000,
+          "teacher_time_ms": 31.999999890103936,
+          "natural_teacher_time_ms": 31.999999890103936,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 3000,
+          "teacher_time_ms": 31.999999890103936,
+          "natural_teacher_time_ms": 31.999999890103936,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 5000,
+          "teacher_time_ms": 31.999999890103936,
+          "natural_teacher_time_ms": 31.999999890103936,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 10000,
+          "teacher_time_ms": 31.999999890103936,
+          "natural_teacher_time_ms": 31.999999890103936,
+          "label_status": "labeled"
+        },
+        {
+          "remaining_time_ms": 30000,
+          "teacher_time_ms": 31.999999890103936,
+          "natural_teacher_time_ms": 31.999999890103936,
+          "label_status": "labeled"
+        }
+      ]
+    }
+  ],
+  "positions_too_low_for_search": [
+    {
+      "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "clock_targets": [
+        {
+          "remaining_time_ms": 300,
+          "usable_time_ms": 0.0,
+          "natural_teacher_time_ms": 31.999999890103936,
+          "teacher_time_ms": null,
+          "label_status": "insufficient_data",
+          "label_reason": "no_usable_clock_after_safety_reserve"
+        }
+      ]
+    },
+    {
+      "fen": "r1bqkb1r/pppppppp/n6n/3N4/8/8/PPPPPPPP/R1BQKBNR w KQkq - 4 3",
+      "clock_targets": [
+        {
+          "remaining_time_ms": 300,
+          "usable_time_ms": 0.0,
+          "natural_teacher_time_ms": 547.0000000204891,
+          "teacher_time_ms": null,
+          "label_status": "insufficient_data",
+          "label_reason": "no_usable_clock_after_safety_reserve"
+        }
+      ]
+    },
+    {
+      "fen": "r1bqkb1r/pppppppp/n6n/3N4/8/8/PPPPPPPP/R1BQKBNR w KQq - 8 5",
+      "clock_targets": [
+        {
+          "remaining_time_ms": 300,
+          "usable_time_ms": 0.0,
+          "natural_teacher_time_ms": 500.0,
+          "teacher_time_ms": null,
+          "label_status": "insufficient_data",
+          "label_reason": "no_usable_clock_after_safety_reserve"
+        }
+      ]
+    }
+  ],
+  "monotonic_violations": []
+}

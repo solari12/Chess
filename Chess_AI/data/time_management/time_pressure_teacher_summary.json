@@ -1,0 +1,56 @@
+{
+  "raw_records": 220,
+  "labeled_samples": 198,
+  "insufficient_samples": 22,
+  "label_rate": 0.9,
+  "teacher_time_ms": {
+    "min": 31.999999890103936,
+    "median": 375.0,
+    "mean": 344.8585858467421,
+    "max": 860.0000001024455
+  },
+  "teacher_depth": {
+    "min": 2,
+    "median": 3.0,
+    "mean": 2.727272727272727,
+    "max": 3
+  },
+  "teacher_confidence": {
+    "min": 0.34990371557692734,
+    "median": 0.44263058331305044,
+    "mean": 0.43640769784873595,
+    "max": 0.8
+  },
+  "clock_distribution": {
+    "300": 22,
+    "500": 22,
+    "750": 22,
+    "1000": 22,
+    "1500": 22,
+    "2000": 22,
+    "3000": 22,
+    "5000": 22,
+    "10000": 22,
+    "30000": 22
+  },
+  "samples_where_best_move_changed": 170,
+  "samples_with_significant_score_change": 160,
+  "samples_with_stable_search": 40,
+  "samples_with_insufficient_depth": 0,
+  "insufficient_reasons": {
+    "no_usable_clock_after_safety_reserve": 22
+  },
+  "teacher_config": {
+    "score_scale": 100.0,
+    "move_change_weight": 0.65,
+    "score_change_weight": 0.35,
+    "cost_weight": 0.25,
+    "min_gain_for_continue": 0.12,
+    "clock_safety_margin_ms": 300.0,
+    "confidence_transition_scale": 3,
+    "timeout_confidence_multiplier": 0.8
+  },
+  "teacher_note": "Heuristic offline target; not a mathematically optimal time or a statistical probability.",
+  "phase": "2E",
+  "dataset": "data\\time_management\\time_pressure_training_dataset.jsonl"
+}
