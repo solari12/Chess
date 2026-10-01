@@ -28,14 +28,18 @@ export function GameStatusPanel({
   status,
   moveNumber,
   aiThinking = false,
+  timeoutLoser = null,
 }: {
   turn: "w" | "b";
   status: GameStatus;
   moveNumber: number;
   aiThinking?: boolean;
+  timeoutLoser?: "w" | "b" | null;
 }) {
   const title =
-    status === "checkmate"
+    status === "timeout"
+      ? "TIME OUT"
+      : status === "checkmate"
       ? "Chiếu hết"
       : status === "stalemate"
         ? "Hòa cờ"
@@ -46,7 +50,9 @@ export function GameStatusPanel({
             : "Đang chơi";
 
   const detail =
-    status === "checkmate"
+    status === "timeout"
+      ? `${timeoutLoser === "w" ? "Trắng" : "Đen"} hết giờ. ${timeoutLoser === "w" ? "Đen" : "Trắng"} thắng.`
+      : status === "checkmate"
       ? `${turn === "w" ? "Đen" : "Trắng"} thắng ván này.`
       : status === "stalemate" || status === "draw"
         ? "Ván cờ kết thúc với kết quả hòa."
@@ -55,7 +61,9 @@ export function GameStatusPanel({
           : "Chọn một quân cờ để xem các nước đi hợp lệ.";
 
   const Icon =
-    status === "checkmate"
+    status === "timeout"
+      ? Clock3
+      : status === "checkmate"
       ? Trophy
       : status === "check"
         ? Activity
@@ -72,7 +80,7 @@ export function GameStatusPanel({
       <div className="flex items-start gap-3">
         <span
           className={`grid size-10 shrink-0 place-items-center rounded-xl border ${
-            status === "check" || status === "checkmate"
+            status === "timeout" || status === "check" || status === "checkmate"
               ? "border-[#d8a094] bg-[#f7eae6] text-[#a94f43]"
               : "border-[#cfd7bd] bg-[#edf1e5] text-[#536743]"
           }`}
@@ -85,8 +93,9 @@ export function GameStatusPanel({
             <p className="m-0 text-[10px] font-semibold tracking-[.14em] text-[#77776d]">
               {status === "checkmate" ||
               status === "stalemate" ||
-              status === "draw"
-                ? "KẾT QUẢ VÁN ĐẤU"
+              status === "draw" ||
+              status === "timeout"
+                ? status === "timeout" ? "TIME OUT" : "KẾT QUẢ VÁN ĐẤU"
                 : "LƯỢT ĐI HIỆN TẠI"}
             </p>
 
@@ -112,7 +121,7 @@ export function GameStatusPanel({
           </div>
 
           <p className="mb-0 mt-1 text-xs leading-5 text-[#6d6d64]" aria-live="polite">
-            {aiThinking ? "AI đang suy nghĩ..." : detail}
+            {status !== "timeout" && aiThinking ? "AI đang suy nghĩ..." : detail}
           </p>
         </div>
       </div>

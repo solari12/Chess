@@ -77,6 +77,7 @@ export default function GeneticLaboratoryPage() {
   const runEnabled = useRef(false);
   const pausedByUser = useRef(false);
   const requestActive = useRef(false);
+  const resetPending = useRef(false);
   const latestState = useRef<GeneticState | null>(null);
 
   const handleEvent = (event: GeneticEvent) => {
@@ -149,6 +150,27 @@ export default function GeneticLaboratoryPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (operation !== null || state?.status !== "running") return;
+    let mounted = true;
+    const refreshState = async () => {
+      try {
+        const result = await getGeneticState();
+        if (!mounted) return;
+        setState(result);
+        latestState.current = result;
+        setLiveTraces(result.game_traces ?? []);
+      } catch {
+        // Keep showing the last known running state; a later poll can recover.
+      }
+    };
+    const timer = window.setInterval(() => { void refreshState(); }, 1_000);
+    return () => {
+      mounted = false;
+      window.clearInterval(timer);
+    };
+  }, [operation, state?.status]);
+
   const snapshot = useMemo(() => {
     if (!state?.history.length) return null;
     const generation = selectedGeneration ?? state.generation;
@@ -167,6 +189,8 @@ export default function GeneticLaboratoryPage() {
     ? paused && state?.status !== "complete" ? operation === "run" ? "PAUSING AFTER GEN" : "PAUSED" : "EVOLVING"
     : state?.status === "complete"
       ? "COMPLETE"
+      : state?.status === "running"
+        ? "EVOLVING"
       : paused
         ? "PAUSED"
         : state?.generation
@@ -198,8 +222,10 @@ export default function GeneticLaboratoryPage() {
     } catch (reason) {
       setError(messageFrom(reason));
     } finally {
-      requestActive.current = false;
-      setOperation(null);
+      if (!resetPending.current) {
+        requestActive.current = false;
+        setOperation(null);
+      }
     }
   };
 
@@ -237,9 +263,11 @@ export default function GeneticLaboratoryPage() {
       setError(messageFrom(reason));
     } finally {
       runEnabled.current = false;
-      requestActive.current = false;
       setPaused(pausedByUser.current);
-      setOperation(null);
+      if (!resetPending.current) {
+        requestActive.current = false;
+        setOperation(null);
+      }
     }
   };
 
@@ -250,13 +278,30 @@ export default function GeneticLaboratoryPage() {
   };
 
   const reset = async () => {
+    if (operation === "reset" || operation === "loading") return;
+    resetPending.current = true;
+    requestActive.current = true;
+    runEnabled.current = false;
     setPaused(false);
     pausedByUser.current = false;
-    const next = await perform("reset", resetGeneticExperiment);
-    if (next) {
+    setOperation("reset");
+    setError(null);
+    try {
+      const next = await resetGeneticExperiment();
+      setState(next);
+      latestState.current = next;
+      setLiveTraces([]);
+      setLiveEvents([]);
+      setProgressEvent(null);
       setSelectedGeneration(null);
       setSelectedIndividualId(null);
       setSelectedChildId(null);
+    } catch (reason) {
+      setError(messageFrom(reason));
+    } finally {
+      resetPending.current = false;
+      requestActive.current = false;
+      setOperation(null);
     }
   };
 
@@ -306,11 +351,12 @@ export default function GeneticLaboratoryPage() {
           <FlaskConical size={17} className="text-[#8c744b]" />
           <h2 id="controls-heading" className="m-0 text-sm font-semibold tracking-wide">Experiment controls</h2>
           <span className="ml-auto text-[10px] uppercase tracking-widest text-[#8b897e]">Start only when ready · no training runs on page load</span>
+          <Button onClick={start} disabled={busy || state?.status === "running"} className="gap-2 disabled:opacity-100">{operation === "start" ? "Starting…" : state?.status === "running" ? "Experiment Running" : <><Play size={15} /> Start Experiment</>}</Button>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
           <NumberControl label="Population" value={config.population_size} min={2} max={20} onChange={(value) => setConfig((current) => ({ ...current, population_size: value, games_per_individual: Math.min(current.games_per_individual, Math.min(8, value * 2)), elite_count: Math.min(current.elite_count, value - 1), tournament_size: Math.min(current.tournament_size, value) }))} />
           <NumberControl label="Games / candidate" value={config.games_per_individual} min={4} max={Math.min(8, config.population_size * 2)} step={2} onChange={(value) => updateConfig("games_per_individual", Math.max(4, Math.min(Math.min(8, config.population_size * 2), Math.round(value / 2) * 2)))} />
-          <NumberControl label="Search depth" value={config.search_depth} min={1} max={3} onChange={(value) => updateConfig("search_depth", value)} />
+          <NumberControl label="Search depth" value={config.search_depth} min={1} max={100} onChange={(value) => updateConfig("search_depth", value)} />
           <NumberControl label="Mutation rate" value={config.mutation_rate} min={0} max={1} step={0.05} onChange={(value) => updateConfig("mutation_rate", value)} />
           <NumberControl label="Mutation strength" value={config.mutation_strength} min={1} max={100} onChange={(value) => updateConfig("mutation_strength", value)} />
           <NumberControl label="Elite count" value={config.elite_count} min={0} max={Math.max(0, config.population_size - 1)} onChange={(value) => updateConfig("elite_count", value)} />
@@ -320,14 +366,13 @@ export default function GeneticLaboratoryPage() {
           <NumberControl label="Random seed" value={config.seed ?? ""} min={0} max={2147483647} onChange={(value) => updateConfig("seed", value)} />
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          <Button onClick={start} disabled={busy} className="gap-2"><Play size={15} /> Start Experiment</Button>
-          <Button variant="copper" onClick={step} disabled={busy || !state?.generation || state.status === "complete"} className="gap-2"><StepForward size={15} /> Next Generation</Button>
+          <Button variant="copper" onClick={step} disabled={busy || !state?.generation || state.status === "complete" || state.status === "running"} className="gap-2"><StepForward size={15} /> Next Generation</Button>
           {operation === "run" ? (
             <Button variant="secondary" onClick={pause} className="gap-2"><Pause size={15} /> Pause</Button>
           ) : (
-            <Button variant="secondary" onClick={runTen} disabled={busy || !state?.generation || state.status === "complete"} className="gap-2"><Activity size={15} /> Run 10 generations</Button>
+            <Button variant="secondary" onClick={runTen} disabled={busy || !state?.generation || state.status === "complete" || state.status === "running"} className="gap-2"><Activity size={15} /> Run 10 generations</Button>
           )}
-          <Button variant="ghost" onClick={reset} disabled={busy} className="gap-2"><RotateCcw size={15} /> Reset</Button>
+          <Button variant="ghost" onClick={reset} disabled={operation === "reset" || operation === "loading"} className="gap-2"><RotateCcw size={15} /> Reset</Button>
           {operation === "loading" && <span className="ml-1 text-xs text-[#77776d]" aria-live="polite">Loading experiment state…</span>}
           {(operation === "start" || operation === "step" || operation === "run" || operation === "reset") && <span className="ml-1 text-xs text-[#77776d]" aria-live="polite">{operation === "reset" ? "Resetting experiment…" : "Evaluating self-play games…"}</span>}
         </div>
@@ -467,26 +512,6 @@ export default function GeneticLaboratoryPage() {
     </main>
   );
 
-  async function perform(
-    kind: "start" | "step" | "reset",
-    action: () => Promise<GeneticState>,
-  ): Promise<GeneticState | null> {
-    if (requestActive.current) return null;
-    requestActive.current = true;
-    setOperation(kind);
-    setError(null);
-    try {
-      const next = await action();
-      setState(next);
-      return next;
-    } catch (reason) {
-      setError(messageFrom(reason));
-      return null;
-    } finally {
-      requestActive.current = false;
-      setOperation(null);
-    }
-  }
 }
 
 function NumberControl({
@@ -504,10 +529,41 @@ function NumberControl({
   step?: number;
   onChange: (value: number) => void;
 }) {
+  const [draftValue, setDraftValue] = useState(String(value));
+  const [focused, setFocused] = useState(false);
+
+  useEffect(() => {
+    if (!focused) setDraftValue(String(value));
+  }, [focused, value]);
+
+  const commitDraft = () => {
+    const parsed = draftValue === "" ? Number(value) : Number(draftValue);
+    const next = Math.max(min, Math.min(max, Number.isFinite(parsed) ? parsed : min));
+    setDraftValue(String(next));
+    onChange(next);
+    setFocused(false);
+  };
+
   return (
     <label className="flex min-w-0 flex-col gap-1.5 text-[10px] font-medium text-[#6c6b61]">
       {label}
-      <input type="number" value={value} min={min} max={max} step={step} onChange={(event) => { if (event.target.value !== "") onChange(Math.max(min, Math.min(max, Number(event.target.value)))); }} className="h-9 min-w-0 rounded-md border border-[#d5cebf] bg-[#fbf9f3] px-2 font-mono text-xs text-[#343930] outline-none focus-visible:ring-2 focus-visible:ring-amber-700" />
+      <input
+        type="number"
+        value={draftValue}
+        min={min}
+        max={max}
+        step={step}
+        onFocus={() => setFocused(true)}
+        onChange={(event) => {
+          const next = event.target.value;
+          setDraftValue(next);
+          if (next === "") return;
+          const parsed = Number(next);
+          if (Number.isFinite(parsed)) onChange(Math.max(min, Math.min(max, parsed)));
+        }}
+        onBlur={commitDraft}
+        className="h-9 min-w-0 rounded-md border border-[#d5cebf] bg-[#fbf9f3] px-2 font-mono text-xs text-[#343930] outline-none focus-visible:ring-2 focus-visible:ring-amber-700"
+      />
     </label>
   );
 }

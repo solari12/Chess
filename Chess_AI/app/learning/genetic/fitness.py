@@ -46,8 +46,29 @@ class FitnessResult:
 
 
 def evaluate_with_weights(board: chess.Board, weights: PieceWeights) -> int:
-    """Use the engine's material evaluator with experimental genes."""
-    return evaluate(board, piece_value_map(weights))
+    """Score material plus light positional guidance for laboratory games."""
+    score = evaluate(board, piece_value_map(weights))
+    for square, piece in board.piece_map().items():
+        sign = 1 if piece.color == chess.WHITE else -1
+        file_index = chess.square_file(square)
+        rank = chess.square_rank(square)
+        relative_rank = rank if piece.color == chess.WHITE else 7 - rank
+        centrality = max(0, 7 - int(abs(file_index - 3.5) + abs(rank - 3.5)))
+
+        if piece.piece_type == chess.PAWN:
+            positional = relative_rank * 5 + centrality * 2
+        elif piece.piece_type == chess.KNIGHT:
+            positional = centrality * 5 + (8 if relative_rank >= 2 else 0)
+        elif piece.piece_type == chess.BISHOP:
+            positional = centrality * 3 + (5 if relative_rank >= 2 else 0)
+        elif piece.piece_type == chess.ROOK:
+            positional = 12 if relative_rank == 6 else 0
+        elif piece.piece_type == chess.QUEEN:
+            positional = centrality
+        else:
+            positional = 0
+        score += sign * positional
+    return score
 
 
 def piece_value_map(weights: PieceWeights) -> dict[int, int]:
@@ -107,14 +128,14 @@ def _play_game(
         baseline_weights=BASELINE_WEIGHTS.as_dict(),
     )
 
-    while plies < max_plies and not board.is_game_over(claim_draw=True):
+    while plies < max_plies and not board.is_game_over(claim_draw=False):
         mover = board.turn
         side_weights = candidate_weights if mover == candidate_color else opponent.weights
-        piece_values = piece_value_map(side_weights)
         result = alpha_beta(
             board,
             search_depth,
-            evaluator=lambda position: evaluate(position, piece_values),
+            evaluator=lambda position: evaluate_with_weights(position, side_weights),
+            repetition_penalty=12,
         )
         if result.move is None:
             break
@@ -156,17 +177,17 @@ def _play_game(
             depth=move.depth,
         )
 
-    if plies >= max_plies and not board.is_game_over(claim_draw=True):
+    if plies >= max_plies and not board.is_game_over(claim_draw=False):
         game_result: Literal["win", "draw", "loss"] = "draw"
         termination = "ply_limit"
     else:
-        outcome = board.result(claim_draw=True)
+        outcome = board.result(claim_draw=False)
         if outcome in {"1/2-1/2", "*"}:
             game_result = "draw"
         else:
             candidate_won = (outcome == "1-0") == candidate_color
             game_result = "win" if candidate_won else "loss"
-        game_outcome = board.outcome(claim_draw=True)
+        game_outcome = board.outcome(claim_draw=False)
         termination = game_outcome.termination.name.lower() if game_outcome else "unknown"
 
     fitness_delta = {"win": 1, "draw": 0, "loss": -1}[game_result]

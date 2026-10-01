@@ -14,7 +14,17 @@ import {
   tryMove,
 } from "@/lib/chess/chess-game";
 import { parseUciMove, requestAIMove } from "@/lib/chess/ai-client";
-import type { GeneticPlayerProfile, PieceAnimation, PlayerRole, PlayerRoles, PromotionRequest } from "@/types/chess";
+import {
+  advanceChessClock,
+  createChessClock,
+  freezeClockAt,
+  getRemainingTimeMs,
+  getTimeoutResult,
+  type ChessClockState,
+  type ClockMoveSnapshot,
+  type TimeControlId,
+} from "@/lib/chess/chess-clock";
+import type { GameTermination, GeneticPlayerProfile, PieceAnimation, PlayerRole, PlayerRoles, PromotionRequest } from "@/types/chess";
 
 const AI_DEPTH = 3;
 
@@ -31,7 +41,14 @@ export function useChessGame() {
   const playerRolesRef = useRef(playerRoles);
   const [geneticProfile, setGeneticProfile] = useState<GeneticPlayerProfile | null>(null);
   const [aiThinking, setAiThinking] = useState(false);
+  const [timeControl, setTimeControlState] = useState<TimeControlId>("10m");
+  const [clock, setClock] = useState<ChessClockState>(() => createChessClock("10m", Date.now()));
+  const clockRef = useRef(clock);
+  const [clockNow, setClockNow] = useState(() => Date.now());
+  const [clockHistory, setClockHistory] = useState<ClockMoveSnapshot[]>([]);
+  const clockHistoryRef = useRef(clockHistory);
   const [positionKey, setPositionKey] = useState(() => game.fen());
+  const positionRevision = useRef(0);
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
   const [promotionRequest, setPromotionRequest] = useState<PromotionRequest | null>(null);
   const [animation, setAnimation] = useState<PieceAnimation | null>(null);
@@ -40,22 +57,106 @@ export function useChessGame() {
   const legalMoves = selectedSquare ? legalMovesFrom(game, selectedSquare) : [];
   const legalDestinations = [...new Set(legalMoves.map((move) => move.to))];
   const captured = getCapturedPieces(game);
-  const status = getGameStatus(game);
+  const status = clock.timeoutColor ? "timeout" : getGameStatus(game);
+  const termination: GameTermination = clock.timeoutColor
+    ? "timeout"
+    : game.isCheckmate()
+      ? "checkmate"
+      : game.isStalemate()
+        ? "stalemate"
+        : game.isDraw()
+          ? "draw"
+          : null;
   const currentRole = playerRoles[game.turn()];
   const checkedKingSquare = getCheckedKingSquare(game);
   const lastMove = getLastMove(game);
 
-  const commitMove = useCallback((from: Square, to: Square, promotion?: PieceSymbol) => {
+  const writeClock = useCallback((next: ChessClockState) => {
+    clockRef.current = next;
+    setClock(next);
+  }, []);
+
+  const refreshPositionKey = useCallback(() => {
+    positionRevision.current += 1;
+    setPositionKey(`${game.fen()}:${positionRevision.current}`);
+  }, [game]);
+
+  const commitMove = useCallback((from: Square, to: Square, promotion?: PieceSymbol, elapsedOverrideMs?: number) => {
+    const currentClock = clockRef.current;
+    if (currentClock.timeoutColor || currentClock.activeColor !== game.turn()) return false;
+    const now = Date.now();
+    const elapsedSinceTurnStart = currentClock.activeSince === null ? 0 : Math.max(0, now - currentClock.activeSince);
+    const elapsedMs = elapsedOverrideMs === undefined
+      ? elapsedSinceTurnStart
+      : Math.max(elapsedSinceTurnStart, elapsedOverrideMs);
+    const activeRemaining = game.turn() === "w" ? currentClock.whiteTimeMs : currentClock.blackTimeMs;
+    if (activeRemaining - elapsedMs <= 0) {
+      writeClock(freezeClockAt(currentClock, now, game.turn()));
+      return false;
+    }
+
     const move = tryMove(game, from, to, promotion);
     if (!move) return false;
+    const nextClock = advanceChessClock(currentClock, now, game.turn(), game.isGameOver(), elapsedMs);
+    writeClock(nextClock);
+    const clockSnapshot: ClockMoveSnapshot = {
+      move: `${move.from}${move.to}${move.promotion ?? ""}`,
+      fen: game.fen(),
+      timestamp: Date.now(),
+      elapsedMs,
+      whiteTimeMs: nextClock.whiteTimeMs,
+      blackTimeMs: nextClock.blackTimeMs,
+    };
+    const nextHistory = [...clockHistoryRef.current, clockSnapshot];
+    clockHistoryRef.current = nextHistory;
+    setClockHistory(nextHistory);
     const id = ++animationId.current;
     setAnimation(toPieceAnimation(move, id));
     window.setTimeout(() => setAnimation((current) => current?.id === id ? null : current), 280);
     setSelectedSquare(null);
     setPromotionRequest(null);
-    setPositionKey(game.fen());
+    refreshPositionKey();
     return true;
-  }, [game]);
+  }, [game, refreshPositionKey, writeClock]);
+
+  const resetGame = useCallback((nextTimeControl: TimeControlId = timeControl) => {
+    aiRequestRef.current?.controller.abort();
+    aiRequestRef.current = null;
+    setAiThinking(false);
+    game.reset();
+    setSelectedSquare(null);
+    setPromotionRequest(null);
+    setAnimation(null);
+    setTimeControlState(nextTimeControl);
+    writeClock(createChessClock(nextTimeControl, Date.now()));
+    clockHistoryRef.current = [];
+    setClockHistory([]);
+    refreshPositionKey();
+  }, [game, refreshPositionKey, timeControl, writeClock]);
+
+  const chooseTimeControl = useCallback((nextTimeControl: TimeControlId) => {
+    resetGame(nextTimeControl);
+  }, [resetGame]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const now = Date.now();
+      setClockNow((displayedNow) => Math.floor(displayedNow / 1_000) === Math.floor(now / 1_000) ? displayedNow : now);
+      const current = clockRef.current;
+      if (
+        current.activeColor !== null
+        && current.activeSince !== null
+        && !current.timeoutColor
+        && !game.isGameOver()
+        && getRemainingTimeMs(current, current.activeColor, now) <= 0
+      ) {
+        writeClock(freezeClockAt(current, now, current.activeColor));
+        setSelectedSquare(null);
+        setPromotionRequest(null);
+      }
+    }, 200);
+    return () => window.clearInterval(timer);
+  }, [game, writeClock]);
 
   const setPlayerRole = useCallback((color: Color, role: PlayerRole) => {
     if (playerRolesRef.current[color] !== role) {
@@ -87,7 +188,7 @@ export function useChessGame() {
   }, [setPlayerRole]);
 
   useEffect(() => {
-    if (currentRole === "human" || game.isGameOver()) return;
+    if (currentRole === "human" || game.isGameOver() || clock.timeoutColor) return;
 
     const fen = game.fen();
     const turn = game.turn();
@@ -117,7 +218,7 @@ export function useChessGame() {
     void requestAIMove(fen, currentRole, AI_DEPTH, controller.signal, geneticProfile)
       .then((result) => {
         if (!result || aiRequestRef.current !== request || controller.signal.aborted || request.cancelPending) return;
-        if (game.isGameOver() || game.turn() !== turn || game.fen() !== fen || playerRolesRef.current[turn] !== currentRole) return;
+        if (clockRef.current.timeoutColor || game.isGameOver() || game.turn() !== turn || game.fen() !== fen || playerRolesRef.current[turn] !== currentRole) return;
 
         const move = parseUciMove(result.move);
         if (!move) {
@@ -125,7 +226,7 @@ export function useChessGame() {
           return;
         }
 
-        if (!commitMove(move.from, move.to, move.promotion)) {
+        if (!commitMove(move.from, move.to, move.promotion, result.time_ms)) {
           console.error(`Chess AI returned an illegal move for the current position: ${result.move}`);
         }
       })
@@ -151,10 +252,15 @@ export function useChessGame() {
         setAiThinking(false);
       });
     };
-  }, [commitMove, currentRole, game, geneticProfile, playerRoles, positionKey]);
+  }, [clock.timeoutColor, commitMove, currentRole, game, geneticProfile, playerRoles, positionKey]);
+
+  const clockTimes = {
+    w: getRemainingTimeMs(clock, "w", clockNow),
+    b: getRemainingTimeMs(clock, "b", clockNow),
+  };
 
   const selectSquare = useCallback((square: Square) => {
-    if (game.isGameOver() || promotionRequest || playerRoles[game.turn()] !== "human") return;
+    if (clockRef.current.timeoutColor || game.isGameOver() || promotionRequest || playerRoles[game.turn()] !== "human") return;
     const piece = game.get(square);
     if (!piece || piece.color !== game.turn()) {
       setSelectedSquare(null);
@@ -164,7 +270,7 @@ export function useChessGame() {
   }, [game, playerRoles, promotionRequest]);
 
   const handleSquareClick = useCallback((square: Square) => {
-    if (game.isGameOver() || promotionRequest || playerRoles[game.turn()] !== "human") return;
+    if (clockRef.current.timeoutColor || game.isGameOver() || promotionRequest || playerRoles[game.turn()] !== "human") return;
     if (selectedSquare) {
       const destinationMoves = selectedSquare ? legalMovesFrom(game, selectedSquare).filter((move) => move.to === square) : [];
       if (destinationMoves.length) {
@@ -188,21 +294,33 @@ export function useChessGame() {
   const cancelPromotion = useCallback(() => setPromotionRequest(null), []);
 
   const undo = useCallback(() => {
+    if (clockRef.current.timeoutColor) return false;
     if (!game.undo()) return false;
     setSelectedSquare(null);
     setPromotionRequest(null);
     setAnimation(null);
-    setPositionKey(game.fen());
+    const now = Date.now();
+    const frozen = freezeClockAt(clockRef.current, now);
+    const nextClock = { ...frozen, activeColor: game.isGameOver() ? null : game.turn(), activeSince: game.isGameOver() ? null : now };
+    writeClock(nextClock);
+    const nextHistory = clockHistoryRef.current.slice(0, -1);
+    if (nextHistory.length > 0) {
+      const lastIndex = nextHistory.length - 1;
+      nextHistory[lastIndex] = {
+        ...nextHistory[lastIndex],
+        whiteTimeMs: nextClock.whiteTimeMs,
+        blackTimeMs: nextClock.blackTimeMs,
+      };
+    }
+    clockHistoryRef.current = nextHistory;
+    setClockHistory(nextHistory);
+    refreshPositionKey();
     return true;
-  }, [game]);
+  }, [game, refreshPositionKey, writeClock]);
 
   const newGame = useCallback(() => {
-    game.reset();
-    setSelectedSquare(null);
-    setPromotionRequest(null);
-    setAnimation(null);
-    setPositionKey(game.fen());
-  }, [game]);
+    resetGame();
+  }, [resetGame]);
 
   return {
     game,
@@ -217,6 +335,15 @@ export function useChessGame() {
     history,
     captured,
     status,
+    termination,
+    timeControl,
+    chooseTimeControl,
+    clock,
+    clockTimes,
+    clockHistory,
+    timeoutLoser: clock.timeoutColor,
+    timeoutResult: getTimeoutResult(clock.timeoutColor),
+    clockActiveColor: clock.activeColor,
     checkedKingSquare,
     lastMove,
     moveNumber: game.moveNumber(),

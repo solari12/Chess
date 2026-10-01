@@ -1,6 +1,7 @@
 import type { Color, Move, PieceSymbol, Square } from "chess.js";
 
-export type GameStatus = "playing" | "check" | "checkmate" | "stalemate" | "draw";
+export type GameStatus = "playing" | "check" | "checkmate" | "stalemate" | "draw" | "timeout";
+export type GameTermination = "checkmate" | "stalemate" | "draw" | "timeout" | null;
 
 export type Side = Color;
 

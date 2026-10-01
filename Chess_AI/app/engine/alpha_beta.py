@@ -19,12 +19,20 @@ class SearchResult:
     time_ms: float
 
 
-def _terminal_score(board: chess.Board, ply: int) -> int | None:
-    """Match Minimax checkmate-distance and draw scoring exactly."""
+def _terminal_score(
+    board: chess.Board,
+    ply: int,
+    repetition_penalty: int = 0,
+) -> int | None:
+    """Score terminal positions and optionally discourage repeated positions."""
     if board.is_checkmate():
         return -MATE_SCORE + ply if board.turn == chess.WHITE else MATE_SCORE - ply
-    if board.is_game_over(claim_draw=True):
+    if board.is_game_over(claim_draw=repetition_penalty == 0):
         return 0
+    if repetition_penalty and board.is_repetition(2):
+        # Give the side that would repeat the position a small reason to choose
+        # a different line, while still preferring a draw to a material loss.
+        return -repetition_penalty if board.turn == chess.WHITE else repetition_penalty
     return None
 
 
@@ -32,6 +40,7 @@ def alpha_beta(
     board: chess.Board,
     depth: int,
     evaluator: Callable[[chess.Board], int] = evaluate,
+    repetition_penalty: int = 0,
 ) -> SearchResult:
     """Find a move using Minimax with alpha-beta pruning to ``depth`` plies.
 
@@ -56,7 +65,7 @@ def alpha_beta(
         nonlocal nodes
         nodes += 1
 
-        terminal = _terminal_score(board, ply)
+        terminal = _terminal_score(board, ply, repetition_penalty)
         if terminal is not None:
             return terminal
         if remaining_depth == 0:
@@ -92,7 +101,15 @@ def alpha_beta(
         return best_score
 
     best_move: chess.Move | None = None
-    root_terminal = _terminal_score(board, 0)
+    root_terminal = _terminal_score(board, 0, repetition_penalty)
+    if (
+        repetition_penalty
+        and board.is_repetition(2)
+        and not board.is_game_over(claim_draw=False)
+    ):
+        # Repetition is a search penalty, not a real terminal state: the root
+        # still needs to choose a move that can escape the cycle.
+        root_terminal = None
     if root_terminal is not None:
         nodes = 1
         score = root_terminal

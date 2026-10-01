@@ -9,7 +9,7 @@ class AIRequest(BaseModel):
     fen: str = Field(min_length=1, description="Current board position in FEN format")
     # Accept alpha_beta as a compatibility alias for the existing frontend.
     algorithm: Literal["minimax", "alpha-beta", "alpha_beta"]
-    depth: int = Field(strict=True, ge=1, le=10, description="Search depth (1–10)")
+    depth: int = Field(strict=True, ge=1, le=10, description="Search depth (1–100)")
 
 
 class AIResponse(BaseModel):

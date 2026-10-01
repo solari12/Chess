@@ -1,6 +1,7 @@
 """HTTP endpoints for the separate Genetic Algorithm Laboratory."""
 
 import json
+from copy import deepcopy
 from dataclasses import asdict
 from queue import Empty, Full, Queue
 from threading import Event, Lock, Thread
@@ -20,6 +21,14 @@ router = APIRouter(prefix="/api/lab/genetic", tags=["genetic-laboratory"])
 _experiment: GeneticEvolution | None = None
 _experiment_lock = Lock()
 _stream_active = False
+_active_stream_snapshot: dict[str, Any] | None = None
+_cancel_requested = Event()
+_stream_finished = Event()
+_stream_finished.set()
+
+
+class EvaluationCancelled(Exception):
+    """Raised at an evaluation callback boundary when reset is requested."""
 
 
 class StartExperimentRequest(BaseModel):
@@ -27,7 +36,7 @@ class StartExperimentRequest(BaseModel):
 
     population_size: int = Field(default=10, ge=2, le=20)
     games_per_individual: int = Field(default=8, ge=4, le=8)
-    search_depth: int = Field(default=2, ge=1, le=3)
+    search_depth: int = Field(default=2, ge=1, le=100)
     mutation_rate: float = Field(default=0.15, ge=0, le=1)
     mutation_strength: int = Field(default=25, ge=1, le=100)
     elite_count: int = Field(default=2, ge=0)
@@ -98,7 +107,7 @@ def play_genetic_move(request: GeneticMoveRequest) -> dict[str, object]:
     }
 
 
-def _state_payload() -> dict[str, Any]:
+def _state_payload(*, allow_active_state: bool = False) -> dict[str, Any]:
     if _experiment is None:
         return {
             "status": "ready",
@@ -109,6 +118,10 @@ def _state_payload() -> dict[str, Any]:
             "history": [],
             "game_traces": [],
         }
+    if _stream_active and not allow_active_state and _active_stream_snapshot is not None:
+        payload = deepcopy(_active_stream_snapshot)
+        payload["status"] = "running"
+        return payload
     payload = asdict(_experiment.state)
     payload["generation_limit"] = _experiment.config.generations
     return payload
@@ -120,6 +133,8 @@ def start_experiment(request: StartExperimentRequest) -> dict[str, Any]:
     try:
         experiment = GeneticEvolution(request.to_config())
         with _experiment_lock:
+            if _stream_active:
+                raise HTTPException(status_code=409, detail="An evaluation stream is already active")
             experiment.start()
             _experiment = experiment
             return _state_payload()
@@ -145,6 +160,8 @@ def start_experiment_stream(request: StartExperimentRequest) -> StreamingRespons
 @router.post("/step")
 def step_experiment() -> dict[str, Any]:
     with _experiment_lock:
+        if _stream_active:
+            raise HTTPException(status_code=409, detail="An evaluation stream is already active")
         if _experiment is None:
             raise HTTPException(status_code=409, detail="Start an experiment before stepping")
         try:
@@ -172,6 +189,16 @@ def step_experiment_stream() -> StreamingResponse:
 def reset_experiment() -> dict[str, Any]:
     global _experiment
     with _experiment_lock:
+        if _stream_active:
+            _cancel_requested.set()
+            stream_finished = _stream_finished
+        else:
+            _experiment = None
+            return _state_payload()
+
+    # Let the worker leave its current search/move callback before replacing its state.
+    stream_finished.wait()
+    with _experiment_lock:
         _experiment = None
         return _state_payload()
 
@@ -196,6 +223,8 @@ def _stream_response(
     disconnected = Event()
 
     def publish(event: dict[str, object]) -> None:
+        if _cancel_requested.is_set():
+            raise EvaluationCancelled()
         while not disconnected.is_set():
             try:
                 events.put(event, timeout=0.1)
@@ -204,19 +233,31 @@ def _stream_response(
                 continue
 
     def run_evaluation() -> None:
-        global _stream_active
+        global _stream_active, _active_stream_snapshot
         try:
             with _experiment_lock:
                 if _experiment is not experiment:
                     publish({"type": "stream_error", "detail": "Experiment was replaced"})
                     return
-                getattr(experiment, action)(on_event=publish)
-                publish({"type": "state", "state": _state_payload()})
+            getattr(experiment, action)(on_event=publish)
+            with _experiment_lock:
+                state = _state_payload(allow_active_state=True)
+            publish({"type": "state", "state": state})
+        except EvaluationCancelled:
+            with _experiment_lock:
+                state = _state_payload(allow_active_state=True)
+            state["status"] = "ready"
+            try:
+                events.put({"type": "state", "state": state}, timeout=0.1)
+            except Full:
+                pass
         except Exception as error:  # Send worker errors through the same stream.
             publish({"type": "stream_error", "detail": str(error)})
         finally:
             with _experiment_lock:
                 _stream_active = False
+                _active_stream_snapshot = None
+                _stream_finished.set()
             while not disconnected.is_set():
                 try:
                     events.put(None, timeout=0.1)
@@ -252,7 +293,10 @@ def _stream_response(
 
 
 def _claim_stream() -> None:
-    global _stream_active
+    global _stream_active, _active_stream_snapshot
     if _stream_active:
         raise HTTPException(status_code=409, detail="An evaluation stream is already active")
+    _active_stream_snapshot = _state_payload()
+    _cancel_requested.clear()
+    _stream_finished.clear()
     _stream_active = True

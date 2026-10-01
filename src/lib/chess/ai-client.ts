@@ -64,7 +64,10 @@ export async function requestAIMove(
     !("move" in result) ||
     typeof result.move !== "string" ||
     !("algorithm" in result) ||
-    typeof result.algorithm !== "string"
+    typeof result.algorithm !== "string" ||
+    !("time_ms" in result) ||
+    typeof result.time_ms !== "number" ||
+    !Number.isFinite(result.time_ms)
   ) {
     throw new Error("Chess AI returned an invalid response");
   }

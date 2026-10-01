@@ -17,6 +17,7 @@ import {
 import { AccessibleBoard } from "@/components/chess/AccessibleBoard";
 import { SceneErrorBoundary } from "@/components/chess/SceneErrorBoundary";
 import { Button } from "@/components/ui/button";
+import { formatClockTime, TIME_CONTROLS } from "@/lib/chess/chess-clock";
 import {
   CapturedPiecesPanel,
   GameStatusPanel,
@@ -69,7 +70,9 @@ export function ChessGame() {
   };
 
   const winner =
-    game.status === "checkmate"
+    game.status === "timeout"
+      ? game.timeoutLoser === "w" ? "Black" : "White"
+      : game.status === "checkmate"
       ? game.turn === "w"
         ? "Black"
         : "White"
@@ -142,15 +145,20 @@ export function ChessGame() {
         >
           <PlayerRail
             name="Quân đen"
-            descriptor="ĐI SAU"
+            descriptor={`${roleLabels[game.playerRoles.b]} · ĐI SAU`}
             active={
               game.turn === "b" &&
               game.status !== "checkmate" &&
               game.status !== "stalemate" &&
-              game.status !== "draw"
+              game.status !== "draw" &&
+              game.status !== "timeout"
             }
             captured={game.captured.b}
             side="b"
+            clockText={formatClockTime(game.clockTimes.b, game.timeControl)}
+            clockActive={game.clockActiveColor === "b"}
+            clockWarning={game.clockTimes.b < 60_000}
+            clockCritical={game.clockTimes.b < 10_000}
           />
 
           <div className="relative mx-auto aspect-square w-full max-w-[740px] overflow-hidden rounded-2xl border border-[#706758] bg-[#484a43] shadow-[0_8px_24px_#17181355]">
@@ -179,7 +187,7 @@ export function ChessGame() {
 
                   <div>
                     <p className="m-0 text-[9px] font-semibold tracking-[.12em] text-[#8a6935]">
-                      CHIẾU HẾT
+                      {game.status === "timeout" ? "TIME OUT" : "CHIẾU HẾT"}
                     </p>
 
                     <p className="m-0 text-sm font-semibold text-[#30352e]">
@@ -197,15 +205,20 @@ export function ChessGame() {
 
           <PlayerRail
             name="Quân trắng"
-            descriptor="ĐI TRƯỚC"
+            descriptor={`${roleLabels[game.playerRoles.w]} · ĐI TRƯỚC`}
             active={
               game.turn === "w" &&
               game.status !== "checkmate" &&
               game.status !== "stalemate" &&
-              game.status !== "draw"
+              game.status !== "draw" &&
+              game.status !== "timeout"
             }
             captured={game.captured.w}
             side="w"
+            clockText={formatClockTime(game.clockTimes.w, game.timeControl)}
+            clockActive={game.clockActiveColor === "w"}
+            clockWarning={game.clockTimes.w < 60_000}
+            clockCritical={game.clockTimes.w < 10_000}
           />
         </section>
 
@@ -243,11 +256,38 @@ export function ChessGame() {
             )}
           </section>
 
+          <section className="rounded-2xl border border-[#d5cebf] bg-[#fffdf8] p-4" aria-labelledby="time-control-heading">
+            <div className="flex items-baseline justify-between gap-3">
+              <div>
+                <p className="m-0 text-[9px] font-semibold tracking-[.14em] text-[#77776d]">GAME SETTINGS</p>
+                <h2 id="time-control-heading" className="m-0 mt-1 font-display text-sm font-semibold">Time control</h2>
+              </div>
+              <span className="text-[9px] text-[#77776d]">per side · whole game</span>
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {TIME_CONTROLS.map((control) => (
+                <button
+                  key={control.id}
+                  type="button"
+                  aria-pressed={game.timeControl === control.id}
+                  onClick={() => game.chooseTimeControl(control.id)}
+                  className={`min-h-9 rounded-lg border px-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-700 ${game.timeControl === control.id ? "border-[#68764d] bg-[#edf1e5] text-[#465238]" : "border-[#ded7c7] bg-[#f7f4ec] text-[#626258] hover:bg-white"}`}
+                >
+                  {control.label}
+                </button>
+              ))}
+            </div>
+            <p className="mb-0 mt-2 text-[10px] leading-4 text-[#77776d]" title="Search depth and time control are separate settings.">
+              Search depth controls how far AI looks ahead; time control sets each side’s whole-game clock. AI search counts against its clock. Changing this starts a new game.
+            </p>
+          </section>
+
           <GameStatusPanel
             turn={game.turn}
             status={game.status}
             moveNumber={game.moveNumber}
             aiThinking={game.aiThinking}
+            timeoutLoser={game.timeoutLoser}
           />
 
           <div className="grid grid-cols-2 gap-2 rounded-2xl border border-[#d5cebf] bg-[#f7f4ec] p-2">
@@ -259,7 +299,7 @@ export function ChessGame() {
             <Button
               variant="secondary"
               onClick={game.undo}
-              disabled={!game.moveCount}
+              disabled={!game.moveCount || game.status === "timeout"}
               className="h-10"
             >
               <Undo2 size={15} />
@@ -333,12 +373,20 @@ function PlayerRail({
   active,
   captured,
   side,
+  clockText,
+  clockActive,
+  clockWarning,
+  clockCritical,
 }: {
   name: string;
   descriptor: string;
   active: boolean;
   captured: string[];
   side: "w" | "b";
+  clockText: string;
+  clockActive: boolean;
+  clockWarning: boolean;
+  clockCritical: boolean;
 }) {
   return (
     <div
@@ -377,6 +425,14 @@ function PlayerRail({
             capturedBy={side}
           />
         ))}
+      </span>
+
+      <span
+        role="timer"
+        aria-label={`${side === "w" ? "White" : "Black"} clock ${clockText}${clockActive ? ", active" : ""}`}
+        className={`min-w-[76px] rounded-md border px-2.5 py-1.5 text-right font-mono text-sm font-semibold tabular-nums ${clockCritical ? "border-[#e5a497] bg-[#8d4438] text-white" : clockWarning ? "border-[#e0ba8c] bg-[#8b6941] text-white" : clockActive ? "border-[#c5d0a5] bg-[#69764f] text-white" : "border-[#77776d] bg-[#353934] text-[#f3eddd]"}`}
+      >
+        {clockText}
       </span>
 
       {active && (
