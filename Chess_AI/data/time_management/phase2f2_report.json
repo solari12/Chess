@@ -1,0 +1,1199 @@
+{
+  "phase": "2F.2",
+  "generated_at_utc": "2026-10-01T14:27:17.132689Z",
+  "evaluation_mode": "held_out_teacher_vs_model_oracle_telemetry",
+  "target": "teacher_time_ms",
+  "split_audit": {
+    "method": "sklearn.model_selection.GroupShuffleSplit",
+    "group_key": "fen",
+    "test_size": 0.2,
+    "random_state": 42,
+    "training_record_count": 380,
+    "training_fen_group_count": 77,
+    "heldout_record_count": 100,
+    "heldout_fen_group_count": 20,
+    "fen_overlap_count": 0,
+    "model_version": "phase2c_20261001T122840Z_seed42",
+    "training_source": "data/time_management/validation_training_dataset.jsonl"
+  },
+  "training_set_median_baseline_ms": 233.9999999385327,
+  "heldout_metrics": {
+    "model": {
+      "sample_count": 100,
+      "mae_ms": 88.0792183142602,
+      "rmse_ms": 125.62901050300196,
+      "median_absolute_error_ms": 53.6077043790487,
+      "r2": 0.5124268258065086,
+      "mean_signed_error_ms": 5.702096965782108,
+      "median_signed_error_ms": 20.468641351313295
+    },
+    "training_median_baseline": {
+      "sample_count": 100,
+      "mae_ms": 144.12000002106652,
+      "rmse_ms": 207.64199964153295,
+      "median_absolute_error_ms": 108.99999993853271,
+      "r2": -0.33195738474728986,
+      "mean_signed_error_ms": -103.66000006673858,
+      "median_signed_error_ms": -63.00000008195639
+    },
+    "relative_mae_improvement_percent": 38.88480550833655,
+    "relative_rmse_improvement_percent": 39.4973027037477,
+    "target_distribution_ms": {
+      "count": 100,
+      "min": 125.0,
+      "median": 297.0000000204891,
+      "mean": 337.6600000052713,
+      "p90": 533.3999999100344,
+      "max": 922.0000000204891
+    },
+    "prediction_distribution_ms": {
+      "count": 100,
+      "min": 127.07613349812068,
+      "median": 348.9691546534249,
+      "mean": 343.3620969710534,
+      "p90": 539.9311976619827,
+      "max": 631.1124438017662
+    },
+    "signed_error_definition": "prediction_ms - teacher_time_ms; positive is overprediction",
+    "absolute_error_tolerance_hit_rate_percent": {
+      "25": 26.0,
+      "50": 44.0,
+      "100": 70.0
+    },
+    "overprediction_percent": 64.0,
+    "underprediction_percent": 36.0,
+    "exact_prediction_percent": 0.0
+  },
+  "error_by_clock_bucket_ms": {
+    "3000": {
+      "sample_count": 20,
+      "mae_ms": 91.05158581789392,
+      "rmse_ms": 130.27005276799355,
+      "median_absolute_error_ms": 51.98787782507435,
+      "r2": 0.4782971949435244,
+      "mean_signed_error_ms": 11.35324402834381,
+      "median_signed_error_ms": 21.765822303178737,
+      "teacher_target_median_ms": 297.0000000204891,
+      "teacher_target_mean_ms": 339.05000002123415,
+      "prediction_median_ms": 356.7658591415907,
+      "prediction_mean_ms": 350.40324404957795,
+      "cap_activation_rate": 0.0
+    },
+    "10000": {
+      "sample_count": 20,
+      "mae_ms": 97.54320800042936,
+      "rmse_ms": 134.10924182513253,
+      "median_absolute_error_ms": 67.9607104847328,
+      "r2": 0.4521832745634421,
+      "mean_signed_error_ms": 7.480669633259905,
+      "median_signed_error_ms": 23.113704517862672,
+      "teacher_target_median_ms": 304.9999999348074,
+      "teacher_target_mean_ms": 340.5000000144355,
+      "prediction_median_ms": 366.23350672765775,
+      "prediction_mean_ms": 347.98066964769544,
+      "cap_activation_rate": 0.0
+    },
+    "30000": {
+      "sample_count": 20,
+      "mae_ms": 82.25658986233104,
+      "rmse_ms": 115.19700456847356,
+      "median_absolute_error_ms": 58.78369247689693,
+      "r2": 0.5878019344894364,
+      "mean_signed_error_ms": -7.95710313951937,
+      "median_signed_error_ms": 16.05786368847501,
+      "teacher_target_median_ms": 297.0000000204891,
+      "teacher_target_mean_ms": 336.70000000856817,
+      "prediction_median_ms": 348.30583122167945,
+      "prediction_mean_ms": 328.7428968690488,
+      "cap_activation_rate": 0.0
+    },
+    "120000": {
+      "sample_count": 20,
+      "mae_ms": 92.24674546023837,
+      "rmse_ms": 131.6361979194886,
+      "median_absolute_error_ms": 58.42811959472783,
+      "r2": 0.46402327685225164,
+      "mean_signed_error_ms": 14.34450853545649,
+      "median_signed_error_ms": 27.35309035095321,
+      "teacher_target_median_ms": 288.99999998975545,
+      "teacher_target_mean_ms": 337.6499999780208,
+      "prediction_median_ms": 365.20708402496643,
+      "prediction_mean_ms": 351.9945085134773,
+      "cap_activation_rate": 0.0
+    },
+    "300000": {
+      "sample_count": 20,
+      "mae_ms": 77.29796243040833,
+      "rmse_ms": 115.58212467540774,
+      "median_absolute_error_ms": 47.839453228977106,
+      "r2": 0.5817914901551748,
+      "mean_signed_error_ms": 3.289165771369717,
+      "median_signed_error_ms": 10.569638990523686,
+      "teacher_target_median_ms": 288.99999998975545,
+      "teacher_target_mean_ms": 334.4000000040978,
+      "prediction_median_ms": 344.83396718842175,
+      "prediction_mean_ms": 337.68916577546753,
+      "cap_activation_rate": 0.0
+    }
+  },
+  "error_by_teacher_depth": {
+    "3": {
+      "sample_count": 95,
+      "mae_ms": 72.91068311012262,
+      "rmse_ms": 95.68644236683117,
+      "median_absolute_error_ms": 51.45044879933994,
+      "r2": 0.41939700547598613,
+      "mean_signed_error_ms": 25.806490868869286,
+      "median_signed_error_ms": 23.31620277633317,
+      "teacher_target_mean_ms": 307.41052631975003,
+      "teacher_target_median_ms": 281.00000019185245,
+      "prediction_mean_ms": 333.2170171886193,
+      "prediction_median_ms": 347.25190245884085
+    },
+    "4": {
+      "sample_count": 5,
+      "mae_ms": 376.28138719287415,
+      "rmse_ms": 376.4185911929303,
+      "median_absolute_error_ms": 372.36006867297976,
+      "r2": -2305.167904973693,
+      "mean_signed_error_ms": -376.28138719287415,
+      "median_signed_error_ms": -372.36006867297976,
+      "teacher_target_mean_ms": 912.4000000301749,
+      "teacher_target_median_ms": 906.0000001918525,
+      "prediction_mean_ms": 536.1186128373007,
+      "prediction_median_ms": 535.0954521240822
+    }
+  },
+  "error_by_teacher_confidence": {
+    "bin_edges": "low: [0.00, 0.40); medium: [0.40, 0.70); high: [0.70, 1.00].",
+    "groups": {
+      "low": {
+        "definition": "0.00 <= confidence < 0.40",
+        "sample_count": 50,
+        "mae_ms": 67.85402593505897,
+        "rmse_ms": 97.69635060349718,
+        "median_absolute_error_ms": 31.312235991603927,
+        "r2": -0.30048034774572496,
+        "mean_signed_error_ms": 47.057336204455325,
+        "median_signed_error_ms": 20.11886885030306
+      },
+      "medium": {
+        "definition": "0.40 <= confidence < 0.70",
+        "sample_count": 50,
+        "mae_ms": 108.30441069346143,
+        "rmse_ms": 148.39379919216742,
+        "median_absolute_error_ms": 84.33435180942085,
+        "r2": 0.4788658653854634,
+        "mean_signed_error_ms": -35.6531422728911,
+        "median_signed_error_ms": 24.76569339823152
+      },
+      "high": {
+        "definition": "confidence >= 0.70",
+        "sample_count": 0,
+        "mae_ms": null,
+        "rmse_ms": null,
+        "median_absolute_error_ms": null,
+        "r2": null,
+        "mean_signed_error_ms": null,
+        "median_signed_error_ms": null
+      }
+    },
+    "error_changes_across_nonempty_bins": true,
+    "mae_range_across_nonempty_bins_ms": 40.450384758402464,
+    "interpretation": "Compare the reported MAE/bias across non-empty bins; empty bins mean confidence coverage is insufficient for that comparison."
+  },
+  "top_20_absolute_errors": [
+    {
+      "sample_id": "P000072_T002",
+      "fen": "1rbqkb1r/pppppppp/2n5/1N6/4n3/7N/PPPPPPPP/R1BQKBR1 w Q - 12 7",
+      "remaining_time_ms": 120000,
+      "teacher_time_ms": 922.0000000204891,
+      "prediction_ms": 529.4633687902408,
+      "absolute_error_ms": 392.5366312302483,
+      "teacher_depth": 4.0,
+      "confidence": 0.5254547917139046,
+      "completed_depth": 4,
+      "total_nodes": 7088,
+      "timed_out": true
+    },
+    {
+      "sample_id": "P000072_T004",
+      "fen": "1rbqkb1r/pppppppp/2n5/1N6/4n3/7N/PPPPPPPP/R1BQKBR1 w Q - 12 7",
+      "remaining_time_ms": 10000,
+      "teacher_time_ms": 922.0000000204891,
+      "prediction_ms": 539.6147080792109,
+      "absolute_error_ms": 382.3852919412782,
+      "teacher_depth": 4.0,
+      "confidence": 0.5254547917139046,
+      "completed_depth": 4,
+      "total_nodes": 7055,
+      "timed_out": true
+    },
+    {
+      "sample_id": "P000072_T001",
+      "fen": "1rbqkb1r/pppppppp/2n5/1N6/4n3/7N/PPPPPPPP/R1BQKBR1 w Q - 12 7",
+      "remaining_time_ms": 300000,
+      "teacher_time_ms": 905.9999999590218,
+      "prediction_ms": 533.639931286042,
+      "absolute_error_ms": 372.36006867297976,
+      "teacher_depth": 4.0,
+      "confidence": 0.5254547917139046,
+      "completed_depth": 4,
+      "total_nodes": 7129,
+      "timed_out": true
+    },
+    {
+      "sample_id": "P000072_T005",
+      "fen": "1rbqkb1r/pppppppp/2n5/1N6/4n3/7N/PPPPPPPP/R1BQKBR1 w Q - 12 7",
+      "remaining_time_ms": 3000,
+      "teacher_time_ms": 906.0000001918525,
+      "prediction_ms": 535.0954521240822,
+      "absolute_error_ms": 370.9045480677703,
+      "teacher_depth": 4.0,
+      "confidence": 0.5254547917139046,
+      "completed_depth": 4,
+      "total_nodes": 7203,
+      "timed_out": true
+    },
+    {
+      "sample_id": "P000072_T003",
+      "fen": "1rbqkb1r/pppppppp/2n5/1N6/4n3/7N/PPPPPPPP/R1BQKBR1 w Q - 12 7",
+      "remaining_time_ms": 30000,
+      "teacher_time_ms": 905.9999999590218,
+      "prediction_ms": 542.7796039069276,
+      "absolute_error_ms": 363.2203960520942,
+      "teacher_depth": 4.0,
+      "confidence": 0.5254547917139046,
+      "completed_depth": 4,
+      "total_nodes": 7182,
+      "timed_out": true
+    },
+    {
+      "sample_id": "P000077_T004",
+      "fen": "r1bqkb1r/pppppppp/2n5/1N4n1/5N2/5PP1/PPPPP2P/1RBQKBR1 w - - 1 17",
+      "remaining_time_ms": 10000,
+      "teacher_time_ms": 313.0000000819564,
+      "prediction_ms": 572.58877945814,
+      "absolute_error_ms": 259.58877937618365,
+      "teacher_depth": 3.0,
+      "confidence": 0.3447337965142679,
+      "completed_depth": 3,
+      "total_nodes": 6379,
+      "timed_out": true
+    },
+    {
+      "sample_id": "P000077_T005",
+      "fen": "r1bqkb1r/pppppppp/2n5/1N4n1/5N2/5PP1/PPPPP2P/1RBQKBR1 w - - 1 17",
+      "remaining_time_ms": 3000,
+      "teacher_time_ms": 312.99999984912574,
+      "prediction_ms": 563.7719076995884,
+      "absolute_error_ms": 250.77190785046264,
+      "teacher_depth": 3.0,
+      "confidence": 0.3447337965142679,
+      "completed_depth": 3,
+      "total_nodes": 6536,
+      "timed_out": true
+    },
+    {
+      "sample_id": "P000077_T002",
+      "fen": "r1bqkb1r/pppppppp/2n5/1N4n1/5N2/5PP1/PPPPP2P/1RBQKBR1 w - - 1 17",
+      "remaining_time_ms": 120000,
+      "teacher_time_ms": 280.9999999590218,
+      "prediction_ms": 513.9501611610892,
+      "absolute_error_ms": 232.95016120206742,
+      "teacher_depth": 3.0,
+      "confidence": 0.3447337965142679,
+      "completed_depth": 3,
+      "total_nodes": 6748,
+      "timed_out": true
+    },
+    {
+      "sample_id": "P000084_T005",
+      "fen": "r1bqkbr1/ppppppp1/3n3p/5n1N/8/1B2P2Q/PPPP1PPP/RNB1K2R w KQ - 8 13",
+      "remaining_time_ms": 3000,
+      "teacher_time_ms": 593.0000001098961,
+      "prediction_ms": 397.4553329602867,
+      "absolute_error_ms": 195.54466714960938,
+      "teacher_depth": 3.0,
+      "confidence": 0.409144415589523,
+      "completed_depth": 3,
+      "total_nodes": 6329,
+      "timed_out": true
+    },
+    {
+      "sample_id": "P000084_T001",
+      "fen": "r1bqkbr1/ppppppp1/3n3p/5n1N/8/1B2P2Q/PPPP1PPP/RNB1K2R w KQ - 8 13",
+      "remaining_time_ms": 300000,
+      "teacher_time_ms": 563.0000000819564,
+      "prediction_ms": 396.90110820049927,
+      "absolute_error_ms": 166.09889188145712,
+      "teacher_depth": 3.0,
+      "confidence": 0.409144415589523,
+      "completed_depth": 3,
+      "total_nodes": 6179,
+      "timed_out": true
+    },
+    {
+      "sample_id": "P000010_T002",
+      "fen": "r1bk4/pp1ppp1r/1q5p/1n6/6n1/4PP2/PRPPB1PP/2BQK2R w K - 1 19",
+      "remaining_time_ms": 120000,
+      "teacher_time_ms": 266.0000000614673,
+      "prediction_ms": 431.40481830869464,
+      "absolute_error_ms": 165.40481824722735,
+      "teacher_depth": 3.0,
+      "confidence": 0.34872554137773126,
+      "completed_depth": 3,
+      "total_nodes": 5648,
+      "timed_out": true
+    },
+    {
+      "sample_id": "P000084_T003",
+      "fen": "r1bqkbr1/ppppppp1/3n3p/5n1N/8/1B2P2Q/PPPP1PPP/RNB1K2R w KQ - 8 13",
+      "remaining_time_ms": 30000,
+      "teacher_time_ms": 562.9999998491257,
+      "prediction_ms": 399.8584930353215,
+      "absolute_error_ms": 163.14150681380426,
+      "teacher_depth": 3.0,
+      "confidence": 0.409144415589523,
+      "completed_depth": 3,
+      "total_nodes": 6462,
+      "timed_out": true
+    },
+    {
+      "sample_id": "P000010_T005",
+      "fen": "r1bk4/pp1ppp1r/1q5p/1n6/6n1/4PP2/PRPPB1PP/2BQK2R w K - 1 19",
+      "remaining_time_ms": 3000,
+      "teacher_time_ms": 265.99999982863665,
+      "prediction_ms": 425.9880319228479,
+      "absolute_error_ms": 159.98803209421123,
+      "teacher_depth": 3.0,
+      "confidence": 0.34872554137773126,
+      "completed_depth": 3,
+      "total_nodes": 5715,
+      "timed_out": true
+    },
+    {
+      "sample_id": "P000084_T004",
+      "fen": "r1bqkbr1/ppppppp1/3n3p/5n1N/8/1B2P2Q/PPPP1PPP/RNB1K2R w KQ - 8 13",
+      "remaining_time_ms": 10000,
+      "teacher_time_ms": 546.000000089407,
+      "prediction_ms": 386.3000991111561,
+      "absolute_error_ms": 159.69990097825087,
+      "teacher_depth": 3.0,
+      "confidence": 0.409144415589523,
+      "completed_depth": 3,
+      "total_nodes": 6551,
+      "timed_out": true
+    },
+    {
+      "sample_id": "P000048_T002",
+      "fen": "1rb1qbr1/pppppkpp/5p1n/2N4N/1n6/7P/PPPPPPP1/R1BQKBR1 w Q - 14 19",
+      "remaining_time_ms": 120000,
+      "teacher_time_ms": 280.9999999590218,
+      "prediction_ms": 439.013149861046,
+      "absolute_error_ms": 158.01314990202417,
+      "teacher_depth": 3.0,
+      "confidence": 0.4175419628000879,
+      "completed_depth": 3,
+      "total_nodes": 6595,
+      "timed_out": true
+    },
+    {
+      "sample_id": "P000082_T003",
+      "fen": "r1bqkbr1/ppppppp1/7p/3B1nnN/8/4P3/PPPP1PPP/RNBQK2R w KQq - 0 9",
+      "remaining_time_ms": 30000,
+      "teacher_time_ms": 406.00000019185245,
+      "prediction_ms": 563.8849607296622,
+      "absolute_error_ms": 157.88496053780977,
+      "teacher_depth": 3.0,
+      "confidence": 0.34546012579038377,
+      "completed_depth": 3,
+      "total_nodes": 5693,
+      "timed_out": true
+    },
+    {
+      "sample_id": "P000048_T004",
+      "fen": "1rb1qbr1/pppppkpp/5p1n/2N4N/1n6/7P/PPPPPPP1/R1BQKBR1 w Q - 14 19",
+      "remaining_time_ms": 10000,
+      "teacher_time_ms": 281.00000019185245,
+      "prediction_ms": 437.89105817800646,
+      "absolute_error_ms": 156.891057986154,
+      "teacher_depth": 3.0,
+      "confidence": 0.4175419628000879,
+      "completed_depth": 3,
+      "total_nodes": 6713,
+      "timed_out": true
+    },
+    {
+      "sample_id": "P000082_T002",
+      "fen": "r1bqkbr1/ppppppp1/7p/3B1nnN/8/4P3/PPPP1PPP/RNBQK2R w KQq - 0 9",
+      "remaining_time_ms": 120000,
+      "teacher_time_ms": 375.0,
+      "prediction_ms": 530.0133990904029,
+      "absolute_error_ms": 155.0133990904029,
+      "teacher_depth": 3.0,
+      "confidence": 0.34546012579038377,
+      "completed_depth": 3,
+      "total_nodes": 5777,
+      "timed_out": true
+    },
+    {
+      "sample_id": "P000082_T004",
+      "fen": "r1bqkbr1/ppppppp1/7p/3B1nnN/8/4P3/PPPP1PPP/RNBQK2R w KQq - 0 9",
+      "remaining_time_ms": 10000,
+      "teacher_time_ms": 421.99999978765845,
+      "prediction_ms": 573.9777689518803,
+      "absolute_error_ms": 151.97776916422185,
+      "teacher_depth": 3.0,
+      "confidence": 0.34546012579038377,
+      "completed_depth": 3,
+      "total_nodes": 5505,
+      "timed_out": true
+    },
+    {
+      "sample_id": "P000010_T004",
+      "fen": "r1bk4/pp1ppp1r/1q5p/1n6/6n1/4PP2/PRPPB1PP/2BQK2R w K - 1 19",
+      "remaining_time_ms": 10000,
+      "teacher_time_ms": 296.99999978765845,
+      "prediction_ms": 448.8630963485936,
+      "absolute_error_ms": 151.86309656093516,
+      "teacher_depth": 3.0,
+      "confidence": 0.34872554137773126,
+      "completed_depth": 3,
+      "total_nodes": 5513,
+      "timed_out": true
+    }
+  ],
+  "leakage_audit": {
+    "schema_matches_saved_model_metadata": true,
+    "feature_names": [
+      "remaining_time_ms",
+      "legal_move_count",
+      "capture_count",
+      "checking_move_count",
+      "side_in_check",
+      "fullmove_number",
+      "halfmove_clock",
+      "material_white",
+      "material_black",
+      "material_imbalance",
+      "pawn_count_white",
+      "pawn_count_black",
+      "knight_count_white",
+      "knight_count_black",
+      "bishop_count_white",
+      "bishop_count_black",
+      "rook_count_white",
+      "rook_count_black",
+      "queen_count_white",
+      "queen_count_black",
+      "king_safety_basic_indicator",
+      "side_to_move_is_white",
+      "completed_depth",
+      "total_nodes",
+      "total_search_time_ms",
+      "timed_out",
+      "analysis_budget_ms",
+      "max_analysis_depth"
+    ],
+    "teacher_target_and_derived_fields_in_features": [],
+    "leakage_check_passed": true,
+    "excluded_teacher_fields": [
+      "average_score_delta",
+      "best_move_change_count",
+      "confidence",
+      "depth_transitions",
+      "information_gain",
+      "information_gain_score",
+      "label_reason",
+      "label_status",
+      "last_significant_depth",
+      "max_score_delta",
+      "search_stability",
+      "selected_transition_gain",
+      "teacher_confidence",
+      "teacher_depth",
+      "teacher_time_ms",
+      "usable_clock_ms"
+    ],
+    "teacher_fields_used_for_metrics_only": [
+      "teacher_time_ms",
+      "teacher_depth",
+      "teacher_confidence",
+      "information_gain_score",
+      "label_status"
+    ],
+    "oracle_telemetry_features": [
+      "completed_depth",
+      "total_nodes",
+      "total_search_time_ms",
+      "timed_out",
+      "analysis_budget_ms",
+      "max_analysis_depth"
+    ],
+    "future_depth_profiles_or_teacher_summaries_in_features": false,
+    "oracle_telemetry_warning": "Main metrics use telemetry from an already completed bounded search. They do not prove that pre-search inference is ready."
+  },
+  "probe_cost_analysis": {
+    "budgets_ms": [
+      25,
+      50,
+      100,
+      150
+    ],
+    "source": "New offline probes on three held-out FEN groups; Phase 2F.1 probes were not reused because their FEN/clock pairs do not provide sufficient exact held-out Teacher matches.",
+    "low_clock_values_evaluated_ms": [
+      1000,
+      750,
+      500,
+      300
+    ],
+    "at_300ms_safety_result": {
+      "usable_time_ms": 0.0,
+      "probes_skipped": true,
+      "operationally_meaningful": false,
+      "reason": "The 300 ms safety reserve leaves zero usable time, so no pre-search probe is run at this clock."
+    },
+    "by_probe_budget_ms": {
+      "25": {
+        "sample_count": 27,
+        "attempted_count": 24,
+        "skipped_count": 3,
+        "feature_availability_rate": 0.8888888888888888,
+        "probe_elapsed_ms": {
+          "count": 24,
+          "min": 30.999999959021807,
+          "median": 30.999999959021807,
+          "mean": 31.166666662708547,
+          "p90": 31.999999890103936,
+          "max": 31.999999890103936
+        },
+        "completed_depth": {
+          "count": 24,
+          "min": 0.0,
+          "median": 1.0,
+          "mean": 1.1666666666666667,
+          "p90": 2.0,
+          "max": 2.0
+        },
+        "nodes": {
+          "count": 24,
+          "min": 27.0,
+          "median": 58.0,
+          "mean": 67.0,
+          "p90": 128.0,
+          "max": 156.0
+        },
+        "probe_cost_percent_of_clock": {
+          "count": 24,
+          "min": 0.010333333319673937,
+          "median": 0.6716666657788057,
+          "mean": 1.8714930571699773,
+          "p90": 5.6199999898672095,
+          "max": 6.20000003837049
+        },
+        "probe_cost_percent_of_usable_clock": {
+          "count": 24,
+          "min": 0.010343676996670607,
+          "median": 0.7338678875369805,
+          "mean": 3.5640571473591236,
+          "p90": 12.983333311664556,
+          "max": 15.500000095926225
+        },
+        "prediction_error_vs_teacher": {
+          "sample_count": 15,
+          "mae_ms": 189.44000491588264,
+          "rmse_ms": 189.78828956828326,
+          "median_absolute_error_ms": 181.25904347843587,
+          "r2": -9.333117684193748,
+          "mean_signed_error_ms": -189.44000491588264,
+          "median_signed_error_ms": -181.25904347843587
+        },
+        "training_median_baseline_error_vs_teacher": {
+          "sample_count": 15,
+          "mae_ms": 125.40000003452103,
+          "rmse_ms": 138.60375175243183,
+          "median_absolute_error_ms": 125.99999993108213,
+          "r2": -4.511153709978852,
+          "mean_signed_error_ms": -125.40000003452103,
+          "median_signed_error_ms": -125.99999993108213
+        },
+        "teacher_matched_probe_count": 15,
+        "clock_groups": {
+          "300000": {
+            "sample_count": 3,
+            "attempted_count": 3,
+            "median_probe_elapsed_ms": 31.999999890103936,
+            "median_clock_cost_percent": 0.010666666630034646,
+            "median_usable_clock_cost_percent": 0.010677343974008654,
+            "teacher_matched_count": 3
+          },
+          "120000": {
+            "sample_count": 3,
+            "attempted_count": 3,
+            "median_probe_elapsed_ms": 30.999999959021807,
+            "median_clock_cost_percent": 0.025833333299184837,
+            "median_usable_clock_cost_percent": 0.025898078495423395,
+            "teacher_matched_count": 3
+          },
+          "30000": {
+            "sample_count": 3,
+            "attempted_count": 3,
+            "median_probe_elapsed_ms": 30.999999959021807,
+            "median_clock_cost_percent": 0.10333333319673935,
+            "median_usable_clock_cost_percent": 0.10437710423913066,
+            "teacher_matched_count": 3
+          },
+          "10000": {
+            "sample_count": 3,
+            "attempted_count": 3,
+            "median_probe_elapsed_ms": 30.999999959021807,
+            "median_clock_cost_percent": 0.30999999959021807,
+            "median_usable_clock_cost_percent": 0.3195876284435238,
+            "teacher_matched_count": 3
+          },
+          "3000": {
+            "sample_count": 3,
+            "attempted_count": 3,
+            "median_probe_elapsed_ms": 31.00000019185245,
+            "median_clock_cost_percent": 1.033333339728415,
+            "median_usable_clock_cost_percent": 1.1481481552537944,
+            "teacher_matched_count": 3
+          },
+          "1000": {
+            "sample_count": 3,
+            "attempted_count": 3,
+            "median_probe_elapsed_ms": 30.999999959021807,
+            "median_clock_cost_percent": 3.0999999959021807,
+            "median_usable_clock_cost_percent": 4.428571422717401,
+            "teacher_matched_count": 0
+          },
+          "750": {
+            "sample_count": 3,
+            "attempted_count": 3,
+            "median_probe_elapsed_ms": 31.00000019185245,
+            "median_clock_cost_percent": 4.13333335891366,
+            "median_usable_clock_cost_percent": 6.888888931522767,
+            "teacher_matched_count": 0
+          },
+          "500": {
+            "sample_count": 3,
+            "attempted_count": 3,
+            "median_probe_elapsed_ms": 30.999999959021807,
+            "median_clock_cost_percent": 6.199999991804361,
+            "median_usable_clock_cost_percent": 15.499999979510903,
+            "teacher_matched_count": 0
+          },
+          "300": {
+            "sample_count": 3,
+            "attempted_count": 0,
+            "median_probe_elapsed_ms": null,
+            "median_clock_cost_percent": null,
+            "median_usable_clock_cost_percent": null,
+            "teacher_matched_count": 0
+          }
+        }
+      },
+      "50": {
+        "sample_count": 27,
+        "attempted_count": 24,
+        "skipped_count": 3,
+        "feature_availability_rate": 0.8888888888888888,
+        "probe_elapsed_ms": {
+          "count": 24,
+          "min": 46.00000008940697,
+          "median": 47.0000000204891,
+          "mean": 46.87500002910383,
+          "p90": 47.0000000204891,
+          "max": 47.0000000204891
+        },
+        "completed_depth": {
+          "count": 24,
+          "min": 1.0,
+          "median": 1.0,
+          "mean": 1.2083333333333333,
+          "p90": 2.0,
+          "max": 2.0
+        },
+        "nodes": {
+          "count": 24,
+          "min": 50.0,
+          "median": 85.0,
+          "mean": 107.04166666666667,
+          "p90": 224.6,
+          "max": 232.0
+        },
+        "probe_cost_percent_of_clock": {
+          "count": 24,
+          "min": 0.015333333363135655,
+          "median": 1.0183333337772638,
+          "mean": 2.8264097234851864,
+          "p90": 8.460000003688036,
+          "max": 9.40000000409782
+        },
+        "probe_cost_percent_of_usable_clock": {
+          "count": 24,
+          "min": 0.015348682045180837,
+          "median": 1.1126384120925255,
+          "mean": 5.386693058275579,
+          "p90": 19.58333334187045,
+          "max": 23.50000001024455
+        },
+        "prediction_error_vs_teacher": {
+          "sample_count": 15,
+          "mae_ms": 189.44000491588264,
+          "rmse_ms": 189.7882895682833,
+          "median_absolute_error_ms": 181.25904347843587,
+          "r2": -9.33311768419375,
+          "mean_signed_error_ms": -189.44000491588264,
+          "median_signed_error_ms": -181.25904347843587
+        },
+        "training_median_baseline_error_vs_teacher": {
+          "sample_count": 15,
+          "mae_ms": 125.40000003452103,
+          "rmse_ms": 138.60375175243183,
+          "median_absolute_error_ms": 125.99999993108213,
+          "r2": -4.511153709978852,
+          "mean_signed_error_ms": -125.40000003452103,
+          "median_signed_error_ms": -125.99999993108213
+        },
+        "teacher_matched_probe_count": 15,
+        "clock_groups": {
+          "300000": {
+            "sample_count": 3,
+            "attempted_count": 3,
+            "median_probe_elapsed_ms": 46.00000008940697,
+            "median_clock_cost_percent": 0.015333333363135655,
+            "median_usable_clock_cost_percent": 0.015348682045180837,
+            "teacher_matched_count": 3
+          },
+          "120000": {
+            "sample_count": 3,
+            "attempted_count": 3,
+            "median_probe_elapsed_ms": 47.0000000204891,
+            "median_clock_cost_percent": 0.039166666683740914,
+            "median_usable_clock_cost_percent": 0.03926482875562999,
+            "teacher_matched_count": 3
+          },
+          "30000": {
+            "sample_count": 3,
+            "attempted_count": 3,
+            "median_probe_elapsed_ms": 47.0000000204891,
+            "median_clock_cost_percent": 0.15666666673496366,
+            "median_usable_clock_cost_percent": 0.15824915831814512,
+            "teacher_matched_count": 3
+          },
+          "10000": {
+            "sample_count": 3,
+            "attempted_count": 3,
+            "median_probe_elapsed_ms": 47.0000000204891,
+            "median_clock_cost_percent": 0.47000000020489097,
+            "median_usable_clock_cost_percent": 0.48453608268545456,
+            "teacher_matched_count": 3
+          },
+          "3000": {
+            "sample_count": 3,
+            "attempted_count": 3,
+            "median_probe_elapsed_ms": 47.0000000204891,
+            "median_clock_cost_percent": 1.5666666673496366,
+            "median_usable_clock_cost_percent": 1.7407407414995961,
+            "teacher_matched_count": 3
+          },
+          "1000": {
+            "sample_count": 3,
+            "attempted_count": 3,
+            "median_probe_elapsed_ms": 47.0000000204891,
+            "median_clock_cost_percent": 4.70000000204891,
+            "median_usable_clock_cost_percent": 6.714285717212729,
+            "teacher_matched_count": 0
+          },
+          "750": {
+            "sample_count": 3,
+            "attempted_count": 3,
+            "median_probe_elapsed_ms": 47.0000000204891,
+            "median_clock_cost_percent": 6.266666669398546,
+            "median_usable_clock_cost_percent": 10.444444448997576,
+            "teacher_matched_count": 0
+          },
+          "500": {
+            "sample_count": 3,
+            "attempted_count": 3,
+            "median_probe_elapsed_ms": 47.0000000204891,
+            "median_clock_cost_percent": 9.40000000409782,
+            "median_usable_clock_cost_percent": 23.50000001024455,
+            "teacher_matched_count": 0
+          },
+          "300": {
+            "sample_count": 3,
+            "attempted_count": 0,
+            "median_probe_elapsed_ms": null,
+            "median_clock_cost_percent": null,
+            "median_usable_clock_cost_percent": null,
+            "teacher_matched_count": 0
+          }
+        }
+      },
+      "100": {
+        "sample_count": 27,
+        "attempted_count": 24,
+        "skipped_count": 3,
+        "feature_availability_rate": 0.8888888888888888,
+        "probe_elapsed_ms": {
+          "count": 24,
+          "min": 93.00000010989606,
+          "median": 93.99999980814755,
+          "mean": 93.70833330710109,
+          "p90": 94.0000000409782,
+          "max": 94.0000000409782
+        },
+        "completed_depth": {
+          "count": 24,
+          "min": 1.0,
+          "median": 1.0,
+          "mean": 1.3333333333333333,
+          "p90": 2.0,
+          "max": 2.0
+        },
+        "nodes": {
+          "count": 24,
+          "min": 128.0,
+          "median": 180.0,
+          "mean": 237.20833333333334,
+          "p90": 477.4,
+          "max": 494.0
+        },
+        "probe_cost_percent_of_clock": {
+          "count": 24,
+          "min": 0.03133333326938252,
+          "median": 2.020000002036492,
+          "mean": 5.639090275931974,
+          "p90": 16.780000017024573,
+          "max": 18.80000000819564
+        },
+        "probe_cost_percent_of_usable_clock": {
+          "count": 24,
+          "min": 0.03136469796734987,
+          "median": 2.206758306942789,
+          "mean": 10.745226955976117,
+          "p90": 38.816666707862154,
+          "max": 47.0000000204891
+        },
+        "prediction_error_vs_teacher": {
+          "sample_count": 15,
+          "mae_ms": 189.44000491588264,
+          "rmse_ms": 189.78828956828326,
+          "median_absolute_error_ms": 181.25904347843587,
+          "r2": -9.333117684193748,
+          "mean_signed_error_ms": -189.44000491588264,
+          "median_signed_error_ms": -181.25904347843587
+        },
+        "training_median_baseline_error_vs_teacher": {
+          "sample_count": 15,
+          "mae_ms": 125.40000003452103,
+          "rmse_ms": 138.60375175243183,
+          "median_absolute_error_ms": 125.99999993108213,
+          "r2": -4.511153709978852,
+          "mean_signed_error_ms": -125.40000003452103,
+          "median_signed_error_ms": -125.99999993108213
+        },
+        "teacher_matched_probe_count": 15,
+        "clock_groups": {
+          "300000": {
+            "sample_count": 3,
+            "attempted_count": 3,
+            "median_probe_elapsed_ms": 93.99999980814755,
+            "median_clock_cost_percent": 0.03133333326938252,
+            "median_usable_clock_cost_percent": 0.03136469796734987,
+            "teacher_matched_count": 3
+          },
+          "120000": {
+            "sample_count": 3,
+            "attempted_count": 3,
+            "median_probe_elapsed_ms": 93.99999980814755,
+            "median_clock_cost_percent": 0.07833333317345628,
+            "median_usable_clock_cost_percent": 0.07852965731674816,
+            "teacher_matched_count": 3
+          },
+          "30000": {
+            "sample_count": 3,
+            "attempted_count": 3,
+            "median_probe_elapsed_ms": 93.00000010989606,
+            "median_clock_cost_percent": 0.3100000003663202,
+            "median_usable_clock_cost_percent": 0.31313131350133355,
+            "teacher_matched_count": 3
+          },
+          "10000": {
+            "sample_count": 3,
+            "attempted_count": 3,
+            "median_probe_elapsed_ms": 93.99999980814755,
+            "median_clock_cost_percent": 0.9399999980814755,
+            "median_usable_clock_cost_percent": 0.9690721629705933,
+            "teacher_matched_count": 3
+          },
+          "3000": {
+            "sample_count": 3,
+            "attempted_count": 3,
+            "median_probe_elapsed_ms": 94.0000000409782,
+            "median_clock_cost_percent": 3.133333334699273,
+            "median_usable_clock_cost_percent": 3.4814814829991922,
+            "teacher_matched_count": 3
+          },
+          "1000": {
+            "sample_count": 3,
+            "attempted_count": 3,
+            "median_probe_elapsed_ms": 93.99999980814755,
+            "median_clock_cost_percent": 9.399999980814755,
+            "median_usable_clock_cost_percent": 13.428571401163936,
+            "teacher_matched_count": 0
+          },
+          "750": {
+            "sample_count": 3,
+            "attempted_count": 3,
+            "median_probe_elapsed_ms": 94.0000000409782,
+            "median_clock_cost_percent": 12.533333338797092,
+            "median_usable_clock_cost_percent": 20.88888889799515,
+            "teacher_matched_count": 0
+          },
+          "500": {
+            "sample_count": 3,
+            "attempted_count": 3,
+            "median_probe_elapsed_ms": 93.99999980814755,
+            "median_clock_cost_percent": 18.79999996162951,
+            "median_usable_clock_cost_percent": 46.999999904073775,
+            "teacher_matched_count": 0
+          },
+          "300": {
+            "sample_count": 3,
+            "attempted_count": 0,
+            "median_probe_elapsed_ms": null,
+            "median_clock_cost_percent": null,
+            "median_usable_clock_cost_percent": null,
+            "teacher_matched_count": 0
+          }
+        }
+      },
+      "150": {
+        "sample_count": 27,
+        "attempted_count": 24,
+        "skipped_count": 3,
+        "feature_availability_rate": 0.8888888888888888,
+        "probe_elapsed_ms": {
+          "count": 24,
+          "min": 139.99999989755452,
+          "median": 140.99999982863665,
+          "mean": 140.62499999029873,
+          "p90": 141.0000000614673,
+          "max": 141.0000000614673
+        },
+        "completed_depth": {
+          "count": 24,
+          "min": 1.0,
+          "median": 1.0,
+          "mean": 1.3333333333333333,
+          "p90": 2.0,
+          "max": 2.0
+        },
+        "nodes": {
+          "count": 24,
+          "min": 200.0,
+          "median": 253.5,
+          "mean": 334.125,
+          "p90": 744.7,
+          "max": 749.0
+        },
+        "probe_cost_percent_of_clock": {
+          "count": 24,
+          "min": 0.04666666663251817,
+          "median": 3.0549999974512803,
+          "mean": 8.45784722311267,
+          "p90": 25.240000020712607,
+          "max": 28.200000012293458
+        },
+        "probe_cost_percent_of_usable_clock": {
+          "count": 24,
+          "min": 0.046713380012530704,
+          "median": 3.337915231965898,
+          "mean": 16.11894782056677,
+          "p90": 58.4000000497326,
+          "max": 70.50000003073364
+        },
+        "prediction_error_vs_teacher": {
+          "sample_count": 15,
+          "mae_ms": 189.44000491588264,
+          "rmse_ms": 189.78828956828326,
+          "median_absolute_error_ms": 181.25904347843587,
+          "r2": -9.333117684193748,
+          "mean_signed_error_ms": -189.44000491588264,
+          "median_signed_error_ms": -181.25904347843587
+        },
+        "training_median_baseline_error_vs_teacher": {
+          "sample_count": 15,
+          "mae_ms": 125.40000003452103,
+          "rmse_ms": 138.60375175243183,
+          "median_absolute_error_ms": 125.99999993108213,
+          "r2": -4.511153709978852,
+          "mean_signed_error_ms": -125.40000003452103,
+          "median_signed_error_ms": -125.99999993108213
+        },
+        "teacher_matched_probe_count": 15,
+        "clock_groups": {
+          "300000": {
+            "sample_count": 3,
+            "attempted_count": 3,
+            "median_probe_elapsed_ms": 139.99999989755452,
+            "median_clock_cost_percent": 0.04666666663251817,
+            "median_usable_clock_cost_percent": 0.046713380012530704,
+            "teacher_matched_count": 3
+          },
+          "120000": {
+            "sample_count": 3,
+            "attempted_count": 3,
+            "median_probe_elapsed_ms": 141.0000000614673,
+            "median_clock_cost_percent": 0.11750000005122274,
+            "median_usable_clock_cost_percent": 0.11779448626688996,
+            "teacher_matched_count": 3
+          },
+          "30000": {
+            "sample_count": 3,
+            "attempted_count": 3,
+            "median_probe_elapsed_ms": 140.99999982863665,
+            "median_clock_cost_percent": 0.4699999994287888,
+            "median_usable_clock_cost_percent": 0.4747474741704938,
+            "teacher_matched_count": 3
+          },
+          "10000": {
+            "sample_count": 3,
+            "attempted_count": 3,
+            "median_probe_elapsed_ms": 140.99999982863665,
+            "median_clock_cost_percent": 1.4099999982863665,
+            "median_usable_clock_cost_percent": 1.453608245656048,
+            "teacher_matched_count": 3
+          },
+          "3000": {
+            "sample_count": 3,
+            "attempted_count": 3,
+            "median_probe_elapsed_ms": 140.99999982863665,
+            "median_clock_cost_percent": 4.699999994287888,
+            "median_usable_clock_cost_percent": 5.222222215875432,
+            "teacher_matched_count": 3
+          },
+          "1000": {
+            "sample_count": 3,
+            "attempted_count": 3,
+            "median_probe_elapsed_ms": 140.00000013038516,
+            "median_clock_cost_percent": 14.000000013038516,
+            "median_usable_clock_cost_percent": 20.00000001862645,
+            "teacher_matched_count": 0
+          },
+          "750": {
+            "sample_count": 3,
+            "attempted_count": 3,
+            "median_probe_elapsed_ms": 140.99999982863665,
+            "median_clock_cost_percent": 18.79999997715155,
+            "median_usable_clock_cost_percent": 31.333333295252586,
+            "teacher_matched_count": 0
+          },
+          "500": {
+            "sample_count": 3,
+            "attempted_count": 3,
+            "median_probe_elapsed_ms": 140.99999982863665,
+            "median_clock_cost_percent": 28.19999996572733,
+            "median_usable_clock_cost_percent": 70.49999991431832,
+            "teacher_matched_count": 0
+          },
+          "300": {
+            "sample_count": 3,
+            "attempted_count": 0,
+            "median_probe_elapsed_ms": null,
+            "median_clock_cost_percent": null,
+            "median_usable_clock_cost_percent": null,
+            "teacher_matched_count": 0
+          }
+        }
+      }
+    }
+  },
+  "runtime_safety_simulation": {
+    "formula": "usable=max(remaining_time_ms-300,0); final=min(max(raw_prediction_ms,0),usable)",
+    "safety_margin_ms": 300.0,
+    "all_evaluated_predictions_nonnegative": true,
+    "all_final_budgets_nonnegative": true,
+    "all_final_budgets_at_or_below_usable": true,
+    "boundary_examples_using_largest_heldout_prediction": [
+      {
+        "remaining_time_ms": 300,
+        "usable_time_ms": 0.0,
+        "final_shadow_budget_ms": 0.0,
+        "cap_activated": true,
+        "nonnegative": true,
+        "not_above_usable_clock": true
+      },
+      {
+        "remaining_time_ms": 299,
+        "usable_time_ms": 0.0,
+        "final_shadow_budget_ms": 0.0,
+        "cap_activated": true,
+        "nonnegative": true,
+        "not_above_usable_clock": true
+      },
+      {
+        "remaining_time_ms": 0,
+        "usable_time_ms": 0.0,
+        "final_shadow_budget_ms": 0.0,
+        "cap_activated": true,
+        "nonnegative": true,
+        "not_above_usable_clock": true
+      }
+    ]
+  },
+  "evidence_table": {
+    "heldout_model_mae_ms": 88.0792183142602,
+    "training_median_baseline_mae_ms": 144.12000002106652,
+    "relative_mae_improvement_percent": 38.88480550833655,
+    "model_rmse_ms": 125.62901050300196,
+    "baseline_rmse_ms": 207.64199964153295,
+    "model_r2": 0.5124268258065086,
+    "clock_bucket_mae_ms": {
+      "3000": 91.05158581789392,
+      "10000": 97.54320800042936,
+      "30000": 82.25658986233104,
+      "120000": 92.24674546023837,
+      "300000": 77.29796243040833
+    },
+    "teacher_depth_mae_ms": {
+      "3": 72.91068311012262,
+      "4": 376.28138719287415
+    },
+    "probe_cost_by_budget_ms": {
+      "25": 30.999999959021807,
+      "50": 47.0000000204891,
+      "100": 93.99999980814755,
+      "150": 140.99999982863665
+    },
+    "heldout_fen_groups": 20,
+    "fen_overlap_count": 0,
+    "leakage_check_passed": true
+  },
+  "phase2g_recommendation": {
+    "decision": "NOT YET",
+    "decision_basis": "Factual evidence checks only: held-out improvement over the training median on MAE and RMSE, zero FEN overlap, no feature leakage, a teacher-matched 25 ms probe that beats the matched training-median baseline, and no probe at 300 ms where the reserve leaves no usable clock. No arbitrary accuracy cutoff is applied.",
+    "checks": {
+      "model_beats_training_median_baseline_on_mae": true,
+      "model_beats_training_median_baseline_on_rmse": true,
+      "heldout_fen_overlap_is_zero": true,
+      "leakage_check_passed": true,
+      "small_probe_has_teacher_matched_predictions": true,
+      "pre_search_25ms_probe_beats_matched_training_median": false,
+      "probe_skipped_at_300ms_after_reserve": true
+    },
+    "reason": "Phase 2G is not yet justified: 25 ms pre-search probe MAE 189.44 ms exceeds its matched training-median baseline MAE 125.40 ms.",
+    "limitations": [
+      "This is a single saved grouped holdout from a relatively small corpus; Phase 2G should continue to log shadow results and retain an immediate rollback path.",
+      "The corpus has only the clock values present in the existing teacher dataset; low-clock probe predictions have no exact-clock Teacher target unless a matching row exists.",
+      "The model's main evaluation is oracle telemetry after a bounded search. Only the separate matched probe rows measure pre-search feasibility.",
+      "A GO authorizes evaluation in a controlled experiment, not unrestricted model-controlled gameplay."
+    ],
+    "runtime_code_changed": false,
+    "model_retrained": false
+  }
+}

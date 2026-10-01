@@ -1,5 +1,7 @@
 # Chess AI Service
 
+For the full learning subsystem guide, including Genetic Algorithm and time-management code, datasets, model artifacts, tests, and commands, see [`app/learning/README.md`](app/learning/README.md).
+
 A Python FastAPI chess service with an explicit **INPUT → PROCESSING → OUTPUT** flow:
 
 ```text
@@ -200,6 +202,50 @@ python -m app.learning.time_management.phase2f1 `
 ```
 
 The same command runs probes capped at 25, 50, 100, 150, and 200 ms on four generated positions across all nine clock values. It records elapsed time, depth, nodes, post-probe clock, model output using the existing feature schema, a clock-capped estimated full-search budget after probe cost, and probe clock cost. This is an offline feasibility experiment; probe telemetry never enters a live game. Probe rows are saved in `phase2f1_probe_experiment.jsonl`. To rerun only the probes/report using an existing collection, add `--reuse-existing`; otherwise, re-run the command to replace the collection and report with a fresh seeded run. The report includes the sample and clock-bucket distributions, prediction and actual-runtime distributions, MAE/median absolute error/over- and underprediction/correlation where meaningful, cap and timeout rates, probe summaries, and a GO / NOT YET recommendation. Actual search duration is observed runtime behavior, not the Teacher's ideal target, so the runtime comparison is not direct prediction-quality evidence.
+
+## Phase 2F.2 — Held-out Teacher-vs-Model Validation
+
+Phase 2F.1 compared predictions with actual runtime duration, which is not the Teacher target. Phase 2F.2 answers whether the existing frozen Phase 2C Random Forest predicts genuine `teacher_time_ms` values for FEN groups it did not train on. It reproduces the saved Phase 2C `GroupShuffleSplit` partition from `validation_training_dataset.jsonl`: every clock variant of a FEN stays in one split, with 77 training and 20 held-out FEN groups. It does not fit or retrain any model and does not modify the Teacher or runtime engine.
+
+The target is exactly the existing Phase 2B `teacher_time_ms`. Inference uses `model_features.py` and the saved artifact's feature order. Teacher targets, depth, confidence, information gain, label status, depth profiles, and Teacher summaries are excluded from the feature vector. Main metrics are labeled **oracle telemetry** because they use bounded-search telemetry already present in each record; they do not prove those features are available before a search. A separate offline probe run measures that pre-search path against exact FEN/clock-matched Teacher labels. At 300 ms, the 300 ms safety reserve leaves zero usable time, so probes are skipped.
+
+Run these commands from `Chess_AI/` in order. The artifacts are separate Phase 2F.2 files; the Phase 2A–2F datasets and model artifacts are inputs only.
+
+```powershell
+python -m app.learning.time_management.phase2f2 generate `
+  --input data/time_management/validation_training_dataset.jsonl `
+  --evaluation data/time_management/model_evaluation.json `
+  --output data/time_management/phase2f2_heldout_dataset.jsonl
+
+python -m app.learning.time_management.phase2f2 predict `
+  --heldout data/time_management/phase2f2_heldout_dataset.jsonl `
+  --training data/time_management/validation_training_dataset.jsonl `
+  --output data/time_management/phase2f2_heldout_predictions.jsonl
+
+python -m app.learning.time_management.phase2f2 probe `
+  --heldout data/time_management/phase2f2_heldout_dataset.jsonl `
+  --output data/time_management/phase2f2_probe_predictions.jsonl
+
+python -m app.learning.time_management.phase2f2 report `
+  --heldout data/time_management/phase2f2_heldout_dataset.jsonl `
+  --training data/time_management/validation_training_dataset.jsonl `
+  --predictions data/time_management/phase2f2_heldout_predictions.jsonl `
+  --probes data/time_management/phase2f2_probe_predictions.jsonl `
+  --evaluation data/time_management/model_evaluation.json `
+  --output data/time_management/phase2f2_report.json
+```
+
+The report contains model and training-median baseline metrics on identical held-out rows, clock/depth/confidence slices, target and prediction distributions, the top 20 errors, feature leakage and FEN-overlap audits, probe cost/error, and safety-cap boundary checks. Confidence groups use fixed bins: low `[0.00, 0.40)`, medium `[0.40, 0.70)`, high `[0.70, 1.00]`; empty groups are reported as such. A recommendation uses observed comparisons and feasibility checks rather than a standalone accuracy threshold.
+
+Current result: 100 held-out records across 20 FENs, zero FEN overlap, and no feature leakage. Oracle-telemetry RF MAE is 88.08 ms versus 144.12 ms for the training-median baseline (RMSE 125.63 versus 207.64 ms; R² 0.512). On the 15 exact-label rows available for each probe budget, the 25 ms probe MAE is 189.44 ms versus 125.40 ms for the same-row training-median baseline. Its telemetry is therefore not ready to justify pre-search control. A 25 ms probe took about 31 ms; at 500 ms that is 6.2% of the clock and 15.5% of the clock remaining after reserve. The 300 ms probes are skipped. Current recommendation: **NOT YET for Phase 2G**. Re-run validation with a larger held-out Teacher corpus and improve pre-search probe prediction before considering controlled runtime evaluation. No runtime budget is controlled by the model.
+
+Phase 2F.2 checks:
+
+```powershell
+python -m unittest tests.test_time_management_phase2f2 -v
+python -m unittest discover -s tests -p "test_time_management*.py" -v
+python -m unittest discover -s tests -v
+```
 
 ## Genetic Algorithm Laboratory
 
