@@ -4,6 +4,10 @@ export type GameStatus = "playing" | "check" | "checkmate" | "stalemate" | "draw
 
 export type Side = Color;
 
+export type PlayerRole = "human" | "minimax" | "alpha_beta";
+
+export type PlayerRoles = Record<Side, PlayerRole>;
+
 export type ChessViewMode =
   | "3d"
   | "transitioning-to-2d"

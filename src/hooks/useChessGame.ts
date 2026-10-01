@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Chess, type Color, type PieceSymbol, type Square } from "chess.js";
 import {
   createChessGame,
@@ -13,11 +13,23 @@ import {
   toPieceAnimation,
   tryMove,
 } from "@/lib/chess/chess-game";
-import type { PieceAnimation, PromotionRequest } from "@/types/chess";
+import { parseUciMove, requestAIMove } from "@/lib/chess/ai-client";
+import type { PieceAnimation, PlayerRole, PlayerRoles, PromotionRequest } from "@/types/chess";
+
+const AI_DEPTH = 3;
 
 export function useChessGame() {
   const [game] = useState<Chess>(createChessGame);
   const animationId = useRef(0);
+  const aiRequestRef = useRef<{
+    key: string;
+    controller: AbortController;
+    lease: number;
+    cancelPending: boolean;
+  } | null>(null);
+  const [playerRoles, setPlayerRoles] = useState<PlayerRoles>({ w: "human", b: "human" });
+  const playerRolesRef = useRef(playerRoles);
+  const [aiThinking, setAiThinking] = useState(false);
   const [positionKey, setPositionKey] = useState(() => game.fen());
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
   const [promotionRequest, setPromotionRequest] = useState<PromotionRequest | null>(null);
@@ -28,6 +40,7 @@ export function useChessGame() {
   const legalDestinations = [...new Set(legalMoves.map((move) => move.to))];
   const captured = getCapturedPieces(game);
   const status = getGameStatus(game);
+  const currentRole = playerRoles[game.turn()];
   const checkedKingSquare = getCheckedKingSquare(game);
   const lastMove = getLastMove(game);
 
@@ -43,18 +56,95 @@ export function useChessGame() {
     return true;
   }, [game]);
 
+  const setPlayerRole = useCallback((color: Color, role: PlayerRole) => {
+    if (playerRolesRef.current[color] !== role) {
+      const next = { ...playerRolesRef.current, [color]: role };
+      playerRolesRef.current = next;
+      setPlayerRoles(next);
+    }
+    setSelectedSquare(null);
+    setPromotionRequest(null);
+  }, []);
+
+  useEffect(() => {
+    if (currentRole === "human" || game.isGameOver()) return;
+
+    const fen = game.fen();
+    const turn = game.turn();
+    const key = `${fen}:${currentRole}`;
+    if (aiRequestRef.current?.key === key) {
+      const existingRequest = aiRequestRef.current;
+      existingRequest.lease += 1;
+      existingRequest.cancelPending = false;
+      return () => {
+        const lease = existingRequest.lease;
+        existingRequest.cancelPending = true;
+        queueMicrotask(() => {
+          if (existingRequest.lease !== lease || aiRequestRef.current !== existingRequest) return;
+          existingRequest.controller.abort();
+          aiRequestRef.current = null;
+          setAiThinking(false);
+        });
+      };
+    }
+
+    aiRequestRef.current?.controller.abort();
+    const controller = new AbortController();
+    const request = { key, controller, lease: 0, cancelPending: false };
+    aiRequestRef.current = request;
+    setAiThinking(true);
+
+    void requestAIMove(fen, currentRole, AI_DEPTH, controller.signal)
+      .then((result) => {
+        if (!result || aiRequestRef.current !== request || controller.signal.aborted || request.cancelPending) return;
+        if (game.isGameOver() || game.turn() !== turn || game.fen() !== fen || playerRolesRef.current[turn] !== currentRole) return;
+
+        const move = parseUciMove(result.move);
+        if (!move) {
+          console.error(`Chess AI returned malformed UCI move: ${result.move}`);
+          return;
+        }
+
+        if (!commitMove(move.from, move.to, move.promotion)) {
+          console.error(`Chess AI returned an illegal move for the current position: ${result.move}`);
+        }
+      })
+      .catch((error: unknown) => {
+        if (!controller.signal.aborted && !request.cancelPending && aiRequestRef.current === request) {
+          console.error("Unable to get a move from the chess AI service:", error);
+        }
+      })
+      .finally(() => {
+        if (aiRequestRef.current === request) {
+          aiRequestRef.current = null;
+          setAiThinking(false);
+        }
+      });
+
+    return () => {
+      const lease = request.lease;
+      request.cancelPending = true;
+      queueMicrotask(() => {
+        if (request.lease !== lease || aiRequestRef.current !== request) return;
+        controller.abort();
+        aiRequestRef.current = null;
+        setAiThinking(false);
+      });
+    };
+  }, [commitMove, currentRole, game, playerRoles, positionKey]);
+
   const selectSquare = useCallback((square: Square) => {
-    if (game.isGameOver() || promotionRequest) return;
+    if (game.isGameOver() || promotionRequest || playerRoles[game.turn()] !== "human") return;
     const piece = game.get(square);
     if (!piece || piece.color !== game.turn()) {
       setSelectedSquare(null);
       return;
     }
     setSelectedSquare(square);
-  }, [game, promotionRequest]);
+  }, [game, playerRoles, promotionRequest]);
 
   const handleSquareClick = useCallback((square: Square) => {
-    if (game.isGameOver() || promotionRequest) return;
+    if (game.isGameOver() || promotionRequest || playerRoles[game.turn()] !== "human") return;
     if (selectedSquare) {
       const destinationMoves = selectedSquare ? legalMovesFrom(game, selectedSquare).filter((move) => move.to === square) : [];
       if (destinationMoves.length) {
@@ -68,12 +158,12 @@ export function useChessGame() {
       }
     }
     selectSquare(square);
-  }, [commitMove, game, promotionRequest, selectSquare, selectedSquare]);
+  }, [commitMove, game, playerRoles, promotionRequest, selectSquare, selectedSquare]);
 
   const choosePromotion = useCallback((piece: PieceSymbol) => {
-    if (!promotionRequest) return false;
+    if (!promotionRequest || playerRoles[game.turn()] !== "human") return false;
     return commitMove(promotionRequest.from, promotionRequest.to, piece);
-  }, [commitMove, promotionRequest]);
+  }, [commitMove, game, playerRoles, promotionRequest]);
 
   const cancelPromotion = useCallback(() => setPromotionRequest(null), []);
 
@@ -96,6 +186,10 @@ export function useChessGame() {
 
   return {
     game,
+    playerRoles,
+    setPlayerRole,
+    currentRole,
+    aiThinking,
     positionKey,
     board: game.board(),
     turn: game.turn() as Color,

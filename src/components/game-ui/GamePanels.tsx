@@ -27,10 +27,12 @@ export function GameStatusPanel({
   turn,
   status,
   moveNumber,
+  aiThinking = false,
 }: {
   turn: "w" | "b";
   status: GameStatus;
   moveNumber: number;
+  aiThinking?: boolean;
 }) {
   const title =
     status === "checkmate"
@@ -109,8 +111,8 @@ export function GameStatusPanel({
             </h2>
           </div>
 
-          <p className="mb-0 mt-1 text-xs leading-5 text-[#6d6d64]">
-            {detail}
+          <p className="mb-0 mt-1 text-xs leading-5 text-[#6d6d64]" aria-live="polite">
+            {aiThinking ? "AI đang suy nghĩ..." : detail}
           </p>
         </div>
       </div>

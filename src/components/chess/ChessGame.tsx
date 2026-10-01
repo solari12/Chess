@@ -22,7 +22,13 @@ import {
 } from "@/components/game-ui/GamePanels";
 import { PromotionDialog } from "@/components/game-ui/PromotionDialog";
 import { useChessGame } from "@/hooks/useChessGame";
-import type { ChessViewMode } from "@/types/chess";
+import type { ChessViewMode, PlayerRole } from "@/types/chess";
+
+const roleLabels: Record<PlayerRole, string> = {
+  human: "Human",
+  minimax: "Minimax",
+  alpha_beta: "Alpha-Beta",
+};
 
 const ChessScene = dynamic(
   () =>
@@ -193,10 +199,31 @@ export function ChessGame() {
         </section>
 
         <aside className="flex min-w-0 flex-col gap-3.5">
+          <section className="grid grid-cols-2 gap-3 rounded-2xl border border-[#d5cebf] bg-[#fffdf8] p-4">
+            {(["w", "b"] as const).map((color) => (
+              <label key={color} className="flex min-w-0 flex-col gap-1.5">
+                <span className="text-[9px] font-semibold tracking-[.14em] text-[#77776d]">
+                  {color === "w" ? "WHITE" : "BLACK"}
+                </span>
+                <select
+                  aria-label={`${color === "w" ? "White" : "Black"} player role`}
+                  value={game.playerRoles[color]}
+                  onChange={(event) => game.setPlayerRole(color, event.target.value as PlayerRole)}
+                  className="h-9 w-full rounded-lg border border-[#ded7c7] bg-[#f7f4ec] px-2 text-xs text-[#343930] outline-none focus-visible:ring-2 focus-visible:ring-amber-700"
+                >
+                  {Object.entries(roleLabels).map(([role, label]) => (
+                    <option key={role} value={role}>{label}</option>
+                  ))}
+                </select>
+              </label>
+            ))}
+          </section>
+
           <GameStatusPanel
             turn={game.turn}
             status={game.status}
             moveNumber={game.moveNumber}
+            aiThinking={game.aiThinking}
           />
 
           <div className="grid grid-cols-2 gap-2 rounded-2xl border border-[#d5cebf] bg-[#f7f4ec] p-2">
