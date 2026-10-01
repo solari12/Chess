@@ -193,13 +193,13 @@ export function CapturedPiecesPanel({
 }
 
 export function MoveHistoryPanel({ history }: { history: Move[] }) {
-  const bottom = useRef<HTMLDivElement>(null);
+  const scrollContainer = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    bottom.current?.scrollIntoView({
-      block: "nearest",
-      behavior: "smooth",
-    });
+    const container = scrollContainer.current;
+    if (container && container.scrollHeight > container.clientHeight) {
+      container.scrollTop = container.scrollHeight;
+    }
   }, [history.length]);
 
   const rows = Array.from(
@@ -236,6 +236,7 @@ export function MoveHistoryPanel({ history }: { history: Move[] }) {
       </header>
 
       <div
+        ref={scrollContainer}
         className="move-scroll min-h-0 flex-1 overflow-y-auto p-2"
         role="log"
         aria-label="Biên bản nước đi"
@@ -281,8 +282,6 @@ export function MoveHistoryPanel({ history }: { history: Move[] }) {
             </div>
           </div>
         )}
-
-        <div ref={bottom} />
       </div>
     </section>
   );
