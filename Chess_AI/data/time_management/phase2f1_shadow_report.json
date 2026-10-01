@@ -1,0 +1,487 @@
+{
+  "phase": "2F.1",
+  "generated_at_utc": "2026-10-01T14:04:16.029769Z",
+  "collection": {
+    "total_real_searches": 108,
+    "unique_fen_count": 12,
+    "generated_fens": [
+      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "r1bqkb1r/pppppppp/n4n2/8/8/7N/PPPPPPPP/RNBQKBR1 w Qkq - 8 5",
+      "r1bqkbr1/pppppppp/n6n/8/8/2N5/PPPPPPPP/RNBQKBR1 w Qq - 14 8",
+      "r1bqkbr1/pppppppp/n6n/6N1/8/8/PPPPPPPP/RNBQKBR1 w Q - 22 12",
+      "r1bqkb1r/ppppppp1/n7/4Nn2/8/8/PPPPPPPP/RNBQKBR1 w Q - 7 16",
+      "1rbqkb1r/pppppppp/2n2n2/8/8/7N/PPPPPPPP/RNBQKB1R w KQk - 6 4",
+      "r1bqkb1r/pppppppp/2n5/7n/8/2NN4/PPPPPPPP/R1BQKBR1 w Q - 14 8",
+      "1rbqkbr1/pppppppp/8/2N1n2n/8/4N3/PPPPPPPP/R1BQKBR1 w Q - 20 11",
+      "1rbqkb1r/pppppppp/8/4n3/5n2/4N1N1/PPPPPPPP/R1BQKBR1 w Q - 28 15",
+      "r1bqkbr1/pppppppp/2n2n2/8/8/N7/PPPPPPPP/R1BQKBNR w KQq - 6 4",
+      "1rbqkbr1/pppppppp/8/4n2n/8/7N/PPPPPPPP/RNBQKBR1 w Q - 12 7",
+      "1rbqkbr1/pppppppp/8/1N2n2n/8/7N/PPPPPPPP/R1BQKBR1 w Q - 20 11"
+    ],
+    "search_budget_cap_ms": 250,
+    "max_depth": 64,
+    "seed": 20261001,
+    "requested_coverage_sufficient": true,
+    "clock_bucket_distribution": {
+      "30000": 12,
+      "10000": 12,
+      "5000": 12,
+      "3000": 12,
+      "2000": 12,
+      "1500": 12,
+      "1000": 12,
+      "750": 12,
+      "500": 12
+    }
+  },
+  "raw_prediction_ms": {
+    "count": 108,
+    "min": 134.751245311582,
+    "median": 149.7185016275813,
+    "mean": 154.37610127938476,
+    "p90": 171.0234421397634,
+    "max": 191.91651913964304
+  },
+  "final_shadow_budget_ms": {
+    "count": 108,
+    "min": 134.751245311582,
+    "median": 149.7185016275813,
+    "mean": 154.37610127938476,
+    "p90": 171.0234421397634,
+    "max": 191.91651913964304
+  },
+  "actual_search_time_ms": {
+    "count": 108,
+    "min": 233.9999999385327,
+    "median": 234.00000017136335,
+    "mean": 234.37037036961152,
+    "p90": 235.00000010244548,
+    "max": 235.00000010244548
+  },
+  "prediction_vs_actual_runtime_diagnostics": {
+    "sample_count": 108,
+    "mae_ms": 79.99426909022675,
+    "median_absolute_error_ms": 84.78149839290779,
+    "overprediction_percent": 0.0,
+    "underprediction_percent": 100.0,
+    "pearson_correlation": -0.016608340512813166,
+    "comparison_target_note": "Actual runtime is observed engine behavior, not the teacher's ideal target; this is not direct prediction quality."
+  },
+  "clock_safety": {
+    "safety_margin_ms": 300.0,
+    "nonnegative_shadow_budget_count": 108,
+    "cap_activated_count": 0,
+    "cap_activation_rate": 0.0,
+    "by_clock_bucket_ms": {
+      "30000": {
+        "sample_count": 12,
+        "median_prediction_ms": 149.62131412798556,
+        "median_shadow_budget_ms": 149.62131412798556,
+        "median_actual_search_time_ms": 234.00000017136335,
+        "cap_activation_rate": 0.0,
+        "timeout_rate": 1.0,
+        "usable_time_ms": 29700.0
+      },
+      "10000": {
+        "sample_count": 12,
+        "median_prediction_ms": 149.7737099613541,
+        "median_shadow_budget_ms": 149.7737099613541,
+        "median_actual_search_time_ms": 234.00000005494803,
+        "cap_activation_rate": 0.0,
+        "timeout_rate": 1.0,
+        "usable_time_ms": 9700.0
+      },
+      "5000": {
+        "sample_count": 12,
+        "median_prediction_ms": 149.6632932938085,
+        "median_shadow_budget_ms": 149.6632932938085,
+        "median_actual_search_time_ms": 234.00000017136335,
+        "cap_activation_rate": 0.0,
+        "timeout_rate": 1.0,
+        "usable_time_ms": 4700.0
+      },
+      "3000": {
+        "sample_count": 12,
+        "median_prediction_ms": 149.66329329380852,
+        "median_shadow_budget_ms": 149.66329329380852,
+        "median_actual_search_time_ms": 234.99999986961484,
+        "cap_activation_rate": 0.0,
+        "timeout_rate": 1.0,
+        "usable_time_ms": 2700.0
+      },
+      "2000": {
+        "sample_count": 12,
+        "median_prediction_ms": 149.6632932938085,
+        "median_shadow_budget_ms": 149.6632932938085,
+        "median_actual_search_time_ms": 233.9999999385327,
+        "cap_activation_rate": 0.0,
+        "timeout_rate": 1.0,
+        "usable_time_ms": 1700.0
+      },
+      "1500": {
+        "sample_count": 12,
+        "median_prediction_ms": 149.66329329380852,
+        "median_shadow_budget_ms": 149.66329329380852,
+        "median_actual_search_time_ms": 234.99999986961484,
+        "cap_activation_rate": 0.0,
+        "timeout_rate": 1.0,
+        "usable_time_ms": 1200.0
+      },
+      "1000": {
+        "sample_count": 12,
+        "median_prediction_ms": 149.66329329380852,
+        "median_shadow_budget_ms": 149.66329329380852,
+        "median_actual_search_time_ms": 234.00000017136335,
+        "cap_activation_rate": 0.0,
+        "timeout_rate": 1.0,
+        "usable_time_ms": 700.0
+      },
+      "750": {
+        "sample_count": 12,
+        "median_prediction_ms": 149.6632932938085,
+        "median_shadow_budget_ms": 149.6632932938085,
+        "median_actual_search_time_ms": 234.00000017136335,
+        "cap_activation_rate": 0.0,
+        "timeout_rate": 1.0,
+        "usable_time_ms": 450.0
+      },
+      "500": {
+        "sample_count": 12,
+        "median_prediction_ms": 149.6632932938085,
+        "median_shadow_budget_ms": 149.6632932938085,
+        "median_actual_search_time_ms": 234.00000017136335,
+        "cap_activation_rate": 0.0,
+        "timeout_rate": 1.0,
+        "usable_time_ms": 200.0
+      }
+    }
+  },
+  "pre_search_probe_experiment": {
+    "production_behavior_changed": false,
+    "model_remains_shadow_only": true,
+    "budgets_ms": [
+      25,
+      50,
+      100,
+      150,
+      200
+    ],
+    "results_by_probe_budget_ms": {
+      "25": {
+        "sample_count": 36,
+        "probe_elapsed_ms": {
+          "count": 36,
+          "min": 30.999999959021807,
+          "median": 31.00000019185245,
+          "mean": 31.27777778233091,
+          "p90": 31.999999890103936,
+          "max": 31.999999890103936
+        },
+        "completed_depth": {
+          "count": 36,
+          "min": 1.0,
+          "median": 1.0,
+          "mean": 1.0833333333333333,
+          "p90": 1.0,
+          "max": 2.0
+        },
+        "nodes": {
+          "count": 36,
+          "min": 21.0,
+          "median": 50.5,
+          "mean": 56.30555555555556,
+          "p90": 70.0,
+          "max": 135.0
+        },
+        "remaining_clock_after_probe_ms": {
+          "count": 36,
+          "min": 469.0000000409782,
+          "median": 1968.9999999245629,
+          "mean": 5940.944444439891,
+          "p90": 19968.500000075437,
+          "max": 29969.00000004098
+        },
+        "model_prediction_ms": {
+          "count": 36,
+          "min": 147.4922558213728,
+          "median": 155.3689138669086,
+          "mean": 162.5450650254125,
+          "p90": 191.8498524722352,
+          "max": 191.91651913964301
+        },
+        "estimated_full_search_budget_ms": {
+          "count": 36,
+          "min": 115.66548509817204,
+          "median": 123.86891382593039,
+          "mean": 131.26728724308157,
+          "p90": 160.84985239679804,
+          "max": 160.84985251321342
+        },
+        "probe_clock_cost_percent": {
+          "count": 36,
+          "min": 0.10333333319673935,
+          "median": 1.5500000037718564,
+          "mean": 2.13981481402664,
+          "p90": 5.23333332190911,
+          "max": 6.199999991804361
+        },
+        "probe_over_10_percent_rate": 0.0
+      },
+      "50": {
+        "sample_count": 36,
+        "probe_elapsed_ms": {
+          "count": 36,
+          "min": 46.00000008940697,
+          "median": 47.0000000204891,
+          "mean": 46.91666666702885,
+          "p90": 47.0000000204891,
+          "max": 47.0000000204891
+        },
+        "completed_depth": {
+          "count": 36,
+          "min": 1.0,
+          "median": 2.0,
+          "mean": 1.5277777777777777,
+          "p90": 2.0,
+          "max": 2.0
+        },
+        "nodes": {
+          "count": 36,
+          "min": 57.0,
+          "median": 88.5,
+          "mean": 102.41666666666667,
+          "p90": 112.0,
+          "max": 330.0
+        },
+        "remaining_clock_after_probe_ms": {
+          "count": 36,
+          "min": 452.9999999795109,
+          "median": 1952.999999979511,
+          "mean": 5925.305555555194,
+          "p90": 19953.000000095926,
+          "max": 29953.999999910593
+        },
+        "model_prediction_ms": {
+          "count": 36,
+          "min": 147.49225582137282,
+          "median": 155.3689138669086,
+          "mean": 162.54506502541253,
+          "p90": 191.8498524722352,
+          "max": 191.91651913964304
+        },
+        "estimated_full_search_budget_ms": {
+          "count": 36,
+          "min": 100.49225580088373,
+          "median": 108.85834089581641,
+          "mean": 115.62839835838366,
+          "p90": 144.84985245174613,
+          "max": 145.84985238282823
+        },
+        "probe_clock_cost_percent": {
+          "count": 36,
+          "min": 0.15333333363135657,
+          "median": 2.350000001024455,
+          "mean": 3.218425925782261,
+          "p90": 7.833333336748183,
+          "max": 9.40000000409782
+        },
+        "probe_over_10_percent_rate": 0.0
+      },
+      "100": {
+        "sample_count": 36,
+        "probe_elapsed_ms": {
+          "count": 36,
+          "min": 93.00000010989606,
+          "median": 94.0000000409782,
+          "mean": 93.80555555172678,
+          "p90": 94.0000000409782,
+          "max": 94.0000000409782
+        },
+        "completed_depth": {
+          "count": 36,
+          "min": 2.0,
+          "median": 2.0,
+          "mean": 2.0277777777777777,
+          "p90": 2.0,
+          "max": 3.0
+        },
+        "nodes": {
+          "count": 36,
+          "min": 132.0,
+          "median": 184.0,
+          "mean": 215.77777777777777,
+          "p90": 213.0,
+          "max": 715.0
+        },
+        "remaining_clock_after_probe_ms": {
+          "count": 36,
+          "min": 405.9999999590218,
+          "median": 1906.0000000754371,
+          "mean": 5878.416666670495,
+          "p90": 19906.499999924563,
+          "max": 29905.99999995902
+        },
+        "model_prediction_ms": {
+          "count": 36,
+          "min": 147.49225582137282,
+          "median": 155.3689138669086,
+          "mean": 169.73306323147847,
+          "p90": 191.8498524722352,
+          "max": 450.605600393795
+        },
+        "estimated_full_search_budget_ms": {
+          "count": 36,
+          "min": 53.49225578039463,
+          "median": 61.81370545769869,
+          "mean": 75.92750767975171,
+          "p90": 97.84985266408765,
+          "max": 356.6056003528168
+        },
+        "probe_clock_cost_percent": {
+          "count": 36,
+          "min": 0.3133333334699273,
+          "median": 4.699999996228144,
+          "mean": 6.427129630486619,
+          "p90": 15.566666680388153,
+          "max": 18.80000000819564
+        },
+        "probe_over_10_percent_rate": 0.2222222222222222
+      },
+      "150": {
+        "sample_count": 36,
+        "probe_elapsed_ms": {
+          "count": 36,
+          "min": 139.99999989755452,
+          "median": 140.99999982863665,
+          "mean": 140.63888887823043,
+          "p90": 141.0000000614673,
+          "max": 141.0000000614673
+        },
+        "completed_depth": {
+          "count": 36,
+          "min": 2.0,
+          "median": 2.0,
+          "mean": 2.0833333333333335,
+          "p90": 2.0,
+          "max": 3.0
+        },
+        "nodes": {
+          "count": 36,
+          "min": 210.0,
+          "median": 248.0,
+          "mean": 311.3611111111111,
+          "p90": 319.5,
+          "max": 1018.0
+        },
+        "remaining_clock_after_probe_ms": {
+          "count": 36,
+          "min": 358.9999999385327,
+          "median": 1859.4999999040738,
+          "mean": 5831.583333343991,
+          "p90": 19859.50000002049,
+          "max": 29860.000000102445
+        },
+        "model_prediction_ms": {
+          "count": 36,
+          "min": 147.66548498827598,
+          "median": 159.29375871967818,
+          "mean": 184.15303520739113,
+          "p90": 191.88318580593915,
+          "max": 450.605600393795
+        },
+        "estimated_full_search_budget_ms": {
+          "count": 36,
+          "min": 6.665484926808716,
+          "median": 18.293758658210933,
+          "mean": 43.51414632916072,
+          "p90": 51.84985245826536,
+          "max": 309.60560056515834
+        },
+        "probe_clock_cost_percent": {
+          "count": 36,
+          "min": 0.4666666663251817,
+          "median": 7.025000004796311,
+          "mean": 9.636944443746296,
+          "p90": 23.40000000161429,
+          "max": 28.200000012293458
+        },
+        "probe_over_10_percent_rate": 0.3333333333333333
+      },
+      "200": {
+        "sample_count": 36,
+        "probe_elapsed_ms": {
+          "count": 36,
+          "min": 186.9999999180436,
+          "median": 187.00000015087426,
+          "mean": 187.361111107748,
+          "p90": 188.0000000819564,
+          "max": 188.0000000819564
+        },
+        "completed_depth": {
+          "count": 36,
+          "min": 2.0,
+          "median": 2.0,
+          "mean": 2.0555555555555554,
+          "p90": 2.0,
+          "max": 3.0
+        },
+        "nodes": {
+          "count": 36,
+          "min": 275.0,
+          "median": 348.5,
+          "mean": 411.27777777777777,
+          "p90": 435.5,
+          "max": 1336.0
+        },
+        "remaining_clock_after_probe_ms": {
+          "count": 36,
+          "min": 312.99999984912574,
+          "median": 1812.999999965541,
+          "mean": 5784.861111114475,
+          "p90": 19812.5,
+          "max": 29813.000000081956
+        },
+        "model_prediction_ms": {
+          "count": 36,
+          "min": 147.49225582137282,
+          "median": 159.29151913641434,
+          "mean": 177.09260680734232,
+          "p90": 191.84985247223523,
+          "max": 450.60560039379504
+        },
+        "estimated_full_search_budget_ms": {
+          "count": 36,
+          "min": 0.0,
+          "median": 0.0,
+          "mean": 14.690057160575682,
+          "p90": 4.849852554191585,
+          "max": 263.60560047575143
+        },
+        "probe_clock_cost_percent": {
+          "count": 36,
+          "min": 0.6233333330601454,
+          "median": 9.350000001722947,
+          "mean": 12.828333333859014,
+          "p90": 31.233333315079413,
+          "max": 37.40000003017485
+        },
+        "probe_over_10_percent_rate": 0.4444444444444444
+      }
+    },
+    "estimated_budget_definition": "min(max(min(max(raw_prediction_ms, 0), max(remaining_before_probe_ms - 300, 0)) - probe_elapsed_ms, 0), max(remaining_after_probe_ms - 300, 0))"
+  },
+  "limitations": [
+    "The model was trained on offline teacher labels. Comparing its shadow recommendation with actual runtime search duration is not a direct measure of prediction quality.",
+    "Search duration and telemetry depend on position and hardware. No Teacher was run during this collection, and no model was retrained.",
+    "Probe predictions are a feasibility study only. Probe time is deducted from the remaining clock and is never used to control production searches."
+  ],
+  "phase2g_recommendation": {
+    "decision": "NOT YET",
+    "reason": "Collection coverage is sufficient for this phase, but Phase 2G should wait for a direct held-out teacher-label comparison and review of probe cost on fast clocks. Runtime duration is not a teacher target, and this collection intentionally ran no Teacher.",
+    "missing_evidence": [
+      "A held-out, FEN-and-clock matched comparison against labeled teacher targets.",
+      "A pre-search probe cost budget shown to be acceptable at low clock values; the probe study is diagnostic only."
+    ],
+    "runtime_model_control_authorized": false
+  }
+}

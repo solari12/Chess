@@ -183,6 +183,24 @@ python -m app.learning.time_management.evaluate_shadow `
 
 Inspect the raw per-search records in `runtime_shadow.jsonl` and aggregate metrics in `runtime_shadow_report.json`. Shadow mode is not a learned runtime time allocator and does not authorize the model to control engine searches.
 
+## Phase 2F.1 — Shadow Data Collection
+
+Phase 2F.1 gathers evidence only. The Phase 2C model remains shadow-only: it does not set the production search budget, and this phase does not run the Teacher, retrain the model, or change production search behavior. The collection uses reproducible positions from the Phase 2A position generator and runs real timed searches at the nine requested clock values. By default, 12 positions × 9 clocks produces 108 searches. The separate JSONL output preserves each FEN, clock, actual search duration/depth/nodes/timeout, raw prediction, capped shadow budget, usable clock, model ID, and inference latency.
+
+Run collection and the offline pre-search probe experiment from `Chess_AI/`:
+
+```powershell
+python -m app.learning.time_management.phase2f1 `
+  --positions 12 `
+  --seed 20261001 `
+  --search-budget-ms 250 `
+  --max-depth 64 `
+  --log data/time_management/phase2f1_runtime_shadow.jsonl `
+  --report data/time_management/phase2f1_shadow_report.json
+```
+
+The same command runs probes capped at 25, 50, 100, 150, and 200 ms on four generated positions across all nine clock values. It records elapsed time, depth, nodes, post-probe clock, model output using the existing feature schema, a clock-capped estimated full-search budget after probe cost, and probe clock cost. This is an offline feasibility experiment; probe telemetry never enters a live game. Probe rows are saved in `phase2f1_probe_experiment.jsonl`. To rerun only the probes/report using an existing collection, add `--reuse-existing`; otherwise, re-run the command to replace the collection and report with a fresh seeded run. The report includes the sample and clock-bucket distributions, prediction and actual-runtime distributions, MAE/median absolute error/over- and underprediction/correlation where meaningful, cap and timeout rates, probe summaries, and a GO / NOT YET recommendation. Actual search duration is observed runtime behavior, not the Teacher's ideal target, so the runtime comparison is not direct prediction-quality evidence.
+
 ## Genetic Algorithm Laboratory
 
 The isolated laboratory API evolves experimental pawn, knight, bishop, rook, and queen material weights. It uses the existing Alpha-Beta search with an injected evaluator; the default game endpoint still uses the existing material values, including the fixed king value of 20,000.
