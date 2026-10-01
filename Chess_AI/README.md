@@ -130,6 +130,24 @@ python -m app.learning.time_management.validation `
 
 The validation report compares raw and labeled records by `sample_id`, confirms the raw fields are preserved, and reports target percentiles and clock-group statistics without assigning a subjective quality score.
 
+## Time-management baseline models (Phase 2C)
+
+Install the Python requirements, then run the grouped baseline experiment from `Chess_AI/`:
+
+```powershell
+python -m app.learning.time_management.train_models `
+  --input data/time_management/validation_training_dataset.jsonl `
+  --output-root data/time_management `
+  --random-state 42 `
+  --test-size 0.2
+```
+
+The feature vector uses current position/clock features plus the bounded Phase 2A probe summary. Search telemetry (`completed_depth`, nodes, elapsed time, timeout, and configured caps) is only available after running such a probe; the depth-by-depth profile and teacher-derived summaries are excluded. The model does not receive `teacher_time_ms`, `teacher_depth`, confidence, information gain, label status, or other teacher output. The target is `teacher_time_ms`.
+
+Records are split by FEN with `GroupShuffleSplit`, so clock variants of a position cannot cross train/test. The experiment compares a train-median predictor, a small Gradient Boosting regressor, and a small Random Forest. Clock-group errors and tree feature importances are diagnostics; importance is not causal. Models are saved under a timestamped `data/time_management/models/phase2c_*` directory with the scikit-learn version and configuration. Existing model artifacts and root evaluation reports are not silently overwritten.
+
+The current validation corpus has only 98 FEN groups, and its teacher targets did not vary by clock group. These models are an experimental predictive-signal baseline, not production-ready time management, proof of clock awareness, chess strength, or optimal timing. The command does not integrate a model into Chess runtime.
+
 ## Genetic Algorithm Laboratory
 
 The isolated laboratory API evolves experimental pawn, knight, bishop, rook, and queen material weights. It uses the existing Alpha-Beta search with an injected evaluator; the default game endpoint still uses the existing material values, including the fixed king value of 20,000.

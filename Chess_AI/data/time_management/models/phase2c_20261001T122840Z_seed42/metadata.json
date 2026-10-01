@@ -1,0 +1,62 @@
+{
+  "phase": "2C",
+  "dataset": "data/time_management/validation_training_dataset.jsonl",
+  "target": "teacher_time_ms",
+  "split_method": "grouped_by_fen",
+  "random_state": 42,
+  "feature_names": [
+    "remaining_time_ms",
+    "legal_move_count",
+    "capture_count",
+    "checking_move_count",
+    "side_in_check",
+    "fullmove_number",
+    "halfmove_clock",
+    "material_white",
+    "material_black",
+    "material_imbalance",
+    "pawn_count_white",
+    "pawn_count_black",
+    "knight_count_white",
+    "knight_count_black",
+    "bishop_count_white",
+    "bishop_count_black",
+    "rook_count_white",
+    "rook_count_black",
+    "queen_count_white",
+    "queen_count_black",
+    "king_safety_basic_indicator",
+    "side_to_move_is_white",
+    "completed_depth",
+    "total_nodes",
+    "total_search_time_ms",
+    "timed_out",
+    "analysis_budget_ms",
+    "max_analysis_depth"
+  ],
+  "model_config": {
+    "gradient_boosting": {
+      "class": "sklearn.ensemble.GradientBoostingRegressor",
+      "n_estimators": 80,
+      "learning_rate": 0.05,
+      "max_depth": 2,
+      "loss": "huber",
+      "random_state": 42
+    },
+    "random_forest": {
+      "class": "sklearn.ensemble.RandomForestRegressor",
+      "n_estimators": 160,
+      "max_depth": 6,
+      "min_samples_leaf": 2,
+      "max_features": 0.8,
+      "n_jobs": -1,
+      "random_state": 42
+    }
+  },
+  "sklearn_version": "1.9.1",
+  "serialization": "joblib; load with the same scikit-learn version",
+  "model_paths": {
+    "gradient_boosting": "data\\time_management\\models\\phase2c_20261001T122840Z_seed42\\gradient_boosting.joblib",
+    "random_forest": "data\\time_management\\models\\phase2c_20261001T122840Z_seed42\\random_forest.joblib"
+  }
+}
