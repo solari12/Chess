@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.genetic_lab import router as genetic_lab_router
 from app.api.routes import router
 
 app = FastAPI(title="Chess AI Service", version="0.1.0")
@@ -15,3 +16,4 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(router)
+app.include_router(genetic_lab_router)

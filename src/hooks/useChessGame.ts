@@ -14,7 +14,7 @@ import {
   tryMove,
 } from "@/lib/chess/chess-game";
 import { parseUciMove, requestAIMove } from "@/lib/chess/ai-client";
-import type { PieceAnimation, PlayerRole, PlayerRoles, PromotionRequest } from "@/types/chess";
+import type { GeneticPlayerProfile, PieceAnimation, PlayerRole, PlayerRoles, PromotionRequest } from "@/types/chess";
 
 const AI_DEPTH = 3;
 
@@ -29,6 +29,7 @@ export function useChessGame() {
   } | null>(null);
   const [playerRoles, setPlayerRoles] = useState<PlayerRoles>({ w: "human", b: "human" });
   const playerRolesRef = useRef(playerRoles);
+  const [geneticProfile, setGeneticProfile] = useState<GeneticPlayerProfile | null>(null);
   const [aiThinking, setAiThinking] = useState(false);
   const [positionKey, setPositionKey] = useState(() => game.fen());
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
@@ -67,11 +68,30 @@ export function useChessGame() {
   }, []);
 
   useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const savedProfile = window.localStorage.getItem("chess.genetic-player-profile");
+      if (savedProfile) {
+        try {
+          const parsed: unknown = JSON.parse(savedProfile);
+          if (isGeneticPlayerProfile(parsed)) setGeneticProfile(parsed);
+        } catch {
+          window.localStorage.removeItem("chess.genetic-player-profile");
+        }
+      }
+      if (window.localStorage.getItem("chess.genetic-auto-play") === "black") {
+        window.localStorage.removeItem("chess.genetic-auto-play");
+        setPlayerRole("b", "genetic");
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [setPlayerRole]);
+
+  useEffect(() => {
     if (currentRole === "human" || game.isGameOver()) return;
 
     const fen = game.fen();
     const turn = game.turn();
-    const key = `${fen}:${currentRole}`;
+    const key = `${fen}:${currentRole}:${currentRole === "genetic" ? geneticProfile?.candidate_id ?? "missing" : ""}`;
     if (aiRequestRef.current?.key === key) {
       const existingRequest = aiRequestRef.current;
       existingRequest.lease += 1;
@@ -94,7 +114,7 @@ export function useChessGame() {
     aiRequestRef.current = request;
     setAiThinking(true);
 
-    void requestAIMove(fen, currentRole, AI_DEPTH, controller.signal)
+    void requestAIMove(fen, currentRole, AI_DEPTH, controller.signal, geneticProfile)
       .then((result) => {
         if (!result || aiRequestRef.current !== request || controller.signal.aborted || request.cancelPending) return;
         if (game.isGameOver() || game.turn() !== turn || game.fen() !== fen || playerRolesRef.current[turn] !== currentRole) return;
@@ -131,7 +151,7 @@ export function useChessGame() {
         setAiThinking(false);
       });
     };
-  }, [commitMove, currentRole, game, playerRoles, positionKey]);
+  }, [commitMove, currentRole, game, geneticProfile, playerRoles, positionKey]);
 
   const selectSquare = useCallback((square: Square) => {
     if (game.isGameOver() || promotionRequest || playerRoles[game.turn()] !== "human") return;
@@ -187,6 +207,7 @@ export function useChessGame() {
   return {
     game,
     playerRoles,
+    geneticProfile,
     setPlayerRole,
     currentRole,
     aiThinking,
@@ -213,4 +234,17 @@ export function useChessGame() {
     undo,
     newGame,
   };
+}
+
+function isGeneticPlayerProfile(value: unknown): value is GeneticPlayerProfile {
+  if (typeof value !== "object" || value === null) return false;
+  const candidate = value as Partial<GeneticPlayerProfile>;
+  const weights = candidate.weights;
+  return typeof candidate.candidate_id === "string"
+    && typeof candidate.fitness === "number"
+    && typeof weights === "object"
+    && weights !== null
+    && ["pawn", "knight", "bishop", "rook", "queen"].every((gene) =>
+      Number.isInteger(weights[gene as keyof typeof weights]),
+    );
 }

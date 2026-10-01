@@ -1,4 +1,4 @@
-import type { PlayerRole } from "@/types/chess";
+import type { GeneticPlayerProfile, PlayerRole } from "@/types/chess";
 import type { PieceSymbol, Square } from "chess.js";
 
 export interface ParsedUciMove {
@@ -20,7 +20,7 @@ export function parseUciMove(uci: string): ParsedUciMove | null {
 
 export interface AIResponse {
   move: string;
-  algorithm: "minimax" | "alpha-beta";
+  algorithm: "minimax" | "alpha-beta" | "genetic";
   depth: number;
   score: number;
   nodes: number;
@@ -32,14 +32,23 @@ export async function requestAIMove(
   role: PlayerRole,
   depth: number,
   signal?: AbortSignal,
+  geneticProfile?: GeneticPlayerProfile | null,
 ): Promise<AIResponse | null> {
   if (role === "human") return null;
 
   const baseUrl = (process.env.NEXT_PUBLIC_CHESS_AI_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "");
-  const response = await fetch(`${baseUrl}/api/ai/move`, {
+  const endpoint = role === "genetic" ? "/api/lab/genetic/play-move" : "/api/ai/move";
+  let body: object;
+  if (role === "genetic") {
+    if (!geneticProfile) throw new Error("Choose a trained genetic candidate before starting this game.");
+    body = { fen, depth, weights: geneticProfile.weights };
+  } else {
+    body = { fen, algorithm: role, depth };
+  }
+  const response = await fetch(`${baseUrl}${endpoint}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ fen, algorithm: role, depth }),
+    body: JSON.stringify(body),
     signal,
   });
 

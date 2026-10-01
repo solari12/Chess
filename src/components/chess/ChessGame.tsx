@@ -1,12 +1,14 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useState } from "react";
 import type { Square } from "chess.js";
 import {
   ArrowDownUp,
   Camera,
   Crown,
+  Dna,
   LayoutGrid,
   RotateCcw,
   Shield,
@@ -28,6 +30,7 @@ const roleLabels: Record<PlayerRole, string> = {
   human: "Human",
   minimax: "Minimax",
   alpha_beta: "Alpha-Beta",
+  genetic: "Genetic AI",
 };
 
 const ChessScene = dynamic(
@@ -94,9 +97,17 @@ export function ChessGame() {
           </span>
         </a>
 
-        <div className="hidden items-center gap-2 rounded-full border border-[#d4cbb8] bg-[#faf8f1] px-3 py-1.5 text-[10px] font-medium tracking-[.06em] text-[#626258] sm:flex">
-          <span className="size-1.5 rounded-full bg-[#81905c]" />
-          LOCAL PASS &amp; PLAY
+        <div className="flex items-center gap-2">
+          <Button asChild variant="secondary" size="sm" className="h-9 text-[11px]">
+            <Link href="/laboratory/genetic">
+              <Dna size={14} />
+              Genetic Algorithm Lab
+            </Link>
+          </Button>
+          <div className="hidden items-center gap-2 rounded-full border border-[#d4cbb8] bg-[#faf8f1] px-3 py-1.5 text-[10px] font-medium tracking-[.06em] text-[#626258] sm:flex">
+            <span className="size-1.5 rounded-full bg-[#81905c]" />
+            LOCAL PASS &amp; PLAY
+          </div>
         </div>
       </header>
 
@@ -211,12 +222,25 @@ export function ChessGame() {
                   onChange={(event) => game.setPlayerRole(color, event.target.value as PlayerRole)}
                   className="h-9 w-full rounded-lg border border-[#ded7c7] bg-[#f7f4ec] px-2 text-xs text-[#343930] outline-none focus-visible:ring-2 focus-visible:ring-amber-700"
                 >
-                  {Object.entries(roleLabels).map(([role, label]) => (
-                    <option key={role} value={role}>{label}</option>
-                  ))}
+                  {Object.entries(roleLabels)
+                    .filter(([role]) => role !== "genetic" || game.geneticProfile !== null)
+                    .map(([role, label]) => (
+                      <option key={role} value={role}>
+                        {role === "genetic" && game.geneticProfile
+                          ? `Genetic AI · ${game.geneticProfile.candidate_id}`
+                          : label}
+                      </option>
+                    ))}
                 </select>
               </label>
             ))}
+            {game.geneticProfile && (
+              <p className="col-span-2 m-0 border-t border-[#e4dece] pt-2 text-[10px] leading-4 text-[#69695f]">
+                Ready to play: <strong>{game.geneticProfile.candidate_id}</strong> · fitness{" "}
+                <strong>{game.geneticProfile.fitness > 0 ? "+" : ""}{game.geneticProfile.fitness}</strong>
+                {Object.values(game.playerRoles).includes("genetic") ? " · selected as a player" : " · choose it for White or Black"}
+              </p>
+            )}
           </section>
 
           <GameStatusPanel

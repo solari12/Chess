@@ -1,6 +1,6 @@
 ﻿import { describe, expect, it } from "vitest";
 import { Chess, type Square } from "chess.js";
-import { getCapturedPieces, getCheckedKingSquare, getGameStatus, legalMovesFrom, tryMove } from "@/lib/chess/chess-game";
+import { getCapturedPieces, getCheckedKingSquare, getGameStatus, legalMovesFrom, toPieceAnimation, tryMove } from "@/lib/chess/chess-game";
 
 const sq = (square: string) => square as Square;
 const move = (game: Chess, from: string, to: string, promotion?: "q" | "r" | "b" | "n") => {
@@ -61,16 +61,40 @@ describe("chess.js adapter", () => {
     expect(getGameStatus(insufficient)).toBe("draw");
   });
 
-  it("supports both castles and rejects castling through attack", () => {
-    const kingSide = new Chess("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1");
-    move(kingSide, "e1", "g1");
-    expect(kingSide.get("f1")?.type).toBe("r");
-    expect(kingSide.get("g1")?.type).toBe("k");
-    const queenSide = new Chess("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1");
-    move(queenSide, "e1", "c1");
-    expect(queenSide.get("d1")?.type).toBe("r");
+  it.each([
+    { color: "White", turn: "w", from: "e1", to: "g1", rookFrom: "h1", rookTo: "f1", flag: "k" },
+    { color: "White", turn: "w", from: "e1", to: "c1", rookFrom: "a1", rookTo: "d1", flag: "q" },
+    { color: "Black", turn: "b", from: "e8", to: "g8", rookFrom: "h8", rookTo: "f8", flag: "k" },
+    { color: "Black", turn: "b", from: "e8", to: "c8", rookFrom: "a8", rookTo: "d8", flag: "q" },
+  ] as const)("allows $color castling from King to $to and moves both pieces", ({ turn, from, to, rookFrom, rookTo, flag }) => {
+    const game = new Chess(`r3k2r/8/8/8/8/8/8/R3K2R ${turn} KQkq - 0 1`);
+    expect(legalMovesFrom(game, sq(from)).some(({ to: destination, flags }) => destination === to && flags.includes(flag))).toBe(true);
+
+    const castling = move(game, from, to);
+    expect(castling?.flags.includes(flag)).toBe(true);
+    expect(game.get(to)?.type).toBe("k");
+    expect(game.get(rookTo)?.type).toBe("r");
+    expect(game.get(from)).toBeUndefined();
+    expect(game.get(rookFrom)).toBeUndefined();
+    expect(toPieceAnimation(castling!, 1).rook).toEqual({ from: rookFrom, to: rookTo });
+  });
+
+  it("rejects castling through attack", () => {
     const throughAttack = new Chess("k4r2/8/8/8/8/8/8/4K2R w K - 0 1");
     expect(legalMovesFrom(throughAttack, sq("e1")).some(({ flags }) => flags.includes("k"))).toBe(false);
+  });
+
+  it("keeps White king-side castling available after clearing the path through normal moves", () => {
+    const game = new Chess();
+    for (const [from, to] of [["e2", "e4"], ["e7", "e5"], ["g1", "f3"], ["b8", "c6"], ["f1", "c4"], ["g8", "f6"]]) {
+      move(game, from, to);
+    }
+
+    expect(legalMovesFrom(game, sq("e1")).map(({ to }) => to)).toContain("g1");
+    const castling = move(game, "e1", "g1");
+    expect(castling?.san).toBe("O-O");
+    expect(game.get("g1")?.type).toBe("k");
+    expect(game.get("f1")?.type).toBe("r");
   });
 
   it("performs en passant, promotion, undo, and reset", () => {

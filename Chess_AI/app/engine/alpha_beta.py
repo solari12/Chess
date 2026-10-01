@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from time import perf_counter
+from typing import Callable
 
 import chess
 
@@ -27,7 +28,11 @@ def _terminal_score(board: chess.Board, ply: int) -> int | None:
     return None
 
 
-def alpha_beta(board: chess.Board, depth: int) -> SearchResult:
+def alpha_beta(
+    board: chess.Board,
+    depth: int,
+    evaluator: Callable[[chess.Board], int] = evaluate,
+) -> SearchResult:
     """Find a move using Minimax with alpha-beta pruning to ``depth`` plies.
 
     Alpha is the best score White (the maximizing player) can already
@@ -55,7 +60,7 @@ def alpha_beta(board: chess.Board, depth: int) -> SearchResult:
         if terminal is not None:
             return terminal
         if remaining_depth == 0:
-            return evaluate(board)
+            return evaluator(board)
 
         if board.turn == chess.WHITE:
             best_score = -MATE_SCORE * 2

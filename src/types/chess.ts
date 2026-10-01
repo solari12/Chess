@@ -4,7 +4,19 @@ export type GameStatus = "playing" | "check" | "checkmate" | "stalemate" | "draw
 
 export type Side = Color;
 
-export type PlayerRole = "human" | "minimax" | "alpha_beta";
+export type PlayerRole = "human" | "minimax" | "alpha_beta" | "genetic";
+
+export interface GeneticPlayerProfile {
+  candidate_id: string;
+  fitness: number;
+  weights: {
+    pawn: number;
+    knight: number;
+    bishop: number;
+    rook: number;
+    queen: number;
+  };
+}
 
 export type PlayerRoles = Record<Side, PlayerRole>;
 

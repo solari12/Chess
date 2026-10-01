@@ -1,0 +1,200 @@
+export interface PieceWeights {
+  pawn: number;
+  knight: number;
+  bishop: number;
+  rook: number;
+  queen: number;
+}
+
+export interface Individual {
+  id: string;
+  weights: PieceWeights;
+  fitness: number | null;
+  generation: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  games_played: number;
+  elite_from: string | null;
+}
+
+export interface GameMoveTrace {
+  ply: number;
+  move_number: number;
+  color: "white" | "black";
+  san: string;
+  uci: string;
+  fen: string;
+  evaluation: number;
+  nodes: number;
+  depth: number;
+}
+
+export interface CandidateGameTrace {
+  generation: number;
+  candidate_id: string;
+  candidate_weights: PieceWeights;
+  candidate_color: "white" | "black";
+  game_index: number;
+  games_total: number;
+  opponent_id: string;
+  opponent_type: "baseline" | "population" | "elite";
+  opponent_weights: PieceWeights;
+  baseline_weights: PieceWeights;
+  result: "win" | "draw" | "loss" | null;
+  plies: number;
+  fitness_delta: number;
+  moves: GameMoveTrace[];
+}
+
+export interface MutationEvent {
+  gene: keyof PieceWeights;
+  old_value: number;
+  new_value: number;
+  delta: number;
+}
+
+export interface GeneOrigin {
+  gene: keyof PieceWeights;
+  value: number;
+  source_parent: "parent_a" | "parent_b";
+  source_parent_id: string;
+}
+
+export interface ChildEvent {
+  individual: Individual;
+  parent_a_id: string;
+  parent_b_id: string;
+  crossover_weights: PieceWeights;
+  gene_origins: GeneOrigin[];
+  mutations: MutationEvent[];
+}
+
+export interface ParentPair {
+  parent_a_id: string;
+  parent_b_id: string;
+}
+
+export interface EvolutionStep {
+  generation: number;
+  population: Individual[];
+  selected_parents: string[];
+  parent_pairs: ParentPair[];
+  children: ChildEvent[];
+  elite_individuals: Individual[];
+  best_individual: Individual;
+  average_fitness: number;
+}
+
+export interface GeneticConfig {
+  population_size: number;
+  games_per_individual: number;
+  search_depth: number;
+  mutation_rate: number;
+  mutation_strength: number;
+  elite_count: number;
+  tournament_size: number;
+  max_plies: number;
+  generations: number;
+  seed: number | null;
+}
+
+export interface GeneticState {
+  status: "ready" | "running" | "complete";
+  generation: number;
+  generation_limit: number;
+  config: GeneticConfig | null;
+  population: Individual[];
+  history: EvolutionStep[];
+  game_traces: CandidateGameTrace[];
+}
+
+export type GeneticEvent =
+  | { type: "evaluation_started"; generation: number; candidates_total: number; completed_candidates: number; games_per_individual: number }
+  | { type: "candidate_started"; generation: number; candidate_id: string; candidate_weights: PieceWeights; candidate_index: number; candidates_total: number; completed_candidates: number }
+  | { type: "game_started"; generation: number; candidate_id: string; candidate_weights: PieceWeights; candidate_color: "white" | "black"; color: "white" | "black"; opponent_id: string; opponent_type: "baseline" | "population" | "elite"; opponent_weights: PieceWeights; game_index: number; games_total: number; baseline_weights: PieceWeights; candidate_index: number; candidates_total: number; completed_candidates: number }
+  | ({ type: "move_played"; generation: number; candidate_id: string; candidate_color: "white" | "black"; opponent_id: string; opponent_type: "baseline" | "population" | "elite"; game_index: number; move: string } & GameMoveTrace & { candidate_index: number; candidates_total: number; completed_candidates: number })
+  | { type: "game_finished"; generation: number; candidate_id: string; candidate_color: "white" | "black"; color: "white" | "black"; opponent_id: string; opponent_type: "baseline" | "population" | "elite"; game_index: number; result: "win" | "draw" | "loss"; plies: number; termination: string; fitness_delta: number; candidate_index: number; candidates_total: number; completed_candidates: number }
+  | { type: "candidate_game_finished"; generation: number; candidate_id: string; opponent_id: string; opponent_type: "baseline" | "population" | "elite"; color: "white" | "black"; game_index: number; record: Pick<Individual, "wins" | "draws" | "losses" | "games_played">; fitness: number; candidate_index: number; candidates_total: number; completed_candidates: number }
+  | { type: "candidate_finished"; generation: number; candidate_id: string; record: Pick<Individual, "wins" | "draws" | "losses" | "games_played">; fitness: number; candidate_index: number; candidates_total: number; completed_candidates: number }
+  | { type: "generation_complete"; generation: number; completed_candidates: number; candidates_total: number }
+  | { type: "state"; state: GeneticState }
+  | { type: "stream_error"; detail: string };
+
+const baseUrl = (process.env.NEXT_PUBLIC_CHESS_AI_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "");
+const endpoint = `${baseUrl}/api/lab/genetic`;
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${endpoint}${path}`, {
+    ...init,
+    headers: { "Content-Type": "application/json", ...init?.headers },
+  });
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(`Laboratory request failed (${response.status}): ${detail}`);
+  }
+  return response.json() as Promise<T>;
+}
+
+export const getGeneticState = () => request<GeneticState>("/state");
+
+export const startGeneticExperiment = (config: GeneticConfig) =>
+  request<GeneticState>("/start", { method: "POST", body: JSON.stringify(config) });
+
+export const stepGeneticExperiment = () =>
+  request<GeneticState>("/step", { method: "POST" });
+
+export const resetGeneticExperiment = () =>
+  request<GeneticState>("/reset", { method: "POST" });
+
+export async function streamGeneticExperiment(
+  action: "start" | "step",
+  config: GeneticConfig | null,
+  onEvent: (event: GeneticEvent) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const path = action === "start" ? "/start/stream" : "/step/stream";
+  const response = await fetch(`${endpoint}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+    body: config ? JSON.stringify(config) : undefined,
+    signal,
+  });
+  if (!response.ok) {
+    throw new Error(`Laboratory stream failed (${response.status}): ${await response.text()}`);
+  }
+  if (!response.headers.get("content-type")?.includes("text/event-stream") || !response.body) {
+    throw new Error("The backend deployment did not provide a live event stream.");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let receivedState = false;
+  for (;;) {
+    const { done, value } = await reader.read();
+    buffer += decoder.decode(value, { stream: !done });
+    buffer = buffer.replace(/\r\n/g, "\n");
+    let boundary = buffer.indexOf("\n\n");
+    while (boundary >= 0) {
+      const frame = buffer.slice(0, boundary);
+      buffer = buffer.slice(boundary + 2);
+      const data = frame
+        .split("\n")
+        .filter((line) => line.startsWith("data:"))
+        .map((line) => line.slice(5).trimStart())
+        .join("\n");
+      if (data) {
+        const event = JSON.parse(data) as GeneticEvent;
+        if (event.type === "stream_error") throw new Error(event.detail);
+        if (event.type === "state") receivedState = true;
+        onEvent(event);
+      }
+      boundary = buffer.indexOf("\n\n");
+    }
+    if (done) break;
+  }
+  if (!receivedState) {
+    throw new Error("The live stream ended before the backend reported a completed generation.");
+  }
+}

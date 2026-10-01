@@ -1,5 +1,7 @@
 """Material-based position evaluation from White's point of view."""
 
+from collections.abc import Mapping
+
 import chess
 
 
@@ -13,14 +15,14 @@ PIECE_VALUES: dict[int, int] = {
 }
 
 
-def evaluate(board: chess.Board) -> int:
+def evaluate(board: chess.Board, piece_values: Mapping[int, int] | None = None) -> int:
     """Return material balance in centipawns; positive favors White.
 
     Terminal outcomes are handled by the search so checkmate can be scored
     according to distance. This function evaluates material only.
     """
     score = 0
-    for piece_type, value in PIECE_VALUES.items():
+    for piece_type, value in (piece_values or PIECE_VALUES).items():
         score += len(board.pieces(piece_type, chess.WHITE)) * value
         score -= len(board.pieces(piece_type, chess.BLACK)) * value
     return score

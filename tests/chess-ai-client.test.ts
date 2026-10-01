@@ -39,6 +39,33 @@ describe("chess AI client", () => {
     );
   });
 
+  it("plays the trained genetic candidate through its isolated evaluator endpoint", async () => {
+    const profile = {
+      candidate_id: "I0010",
+      fitness: 3,
+      weights: { pawn: 90, knight: 340, bishop: 320, rook: 510, queen: 930 },
+    };
+    const responseData = {
+      move: "e2e4",
+      algorithm: "genetic",
+      depth: 3,
+      score: 25,
+      nodes: 100,
+      time_ms: 2,
+    };
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(responseData), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(requestAIMove("start-fen", "genetic", 3, undefined, profile)).resolves.toEqual(responseData);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:8000/api/lab/genetic/play-move",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ fen: "start-fen", depth: 3, weights: profile.weights }),
+      }),
+    );
+  });
+
   it("parses normal and promotion UCI moves and rejects malformed moves", () => {
     expect(parseUciMove("e7e5")).toEqual({ from: "e7", to: "e5" });
     expect(parseUciMove("e7e8q")).toEqual({ from: "e7", to: "e8", promotion: "q" });
