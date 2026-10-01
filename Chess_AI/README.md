@@ -72,6 +72,64 @@ On the starting position at depth 2, pure Minimax visits 421 nodes and Alpha-Bet
 python -m unittest discover -s tests -v
 ```
 
+## Time-management dataset (Phase 2A)
+
+Generate an offline JSONL dataset from the starting position and seeded engine games. Each sampled position is analyzed once for every configured synthetic clock value. The records contain position features and observed iterative Alpha-Beta search telemetry; they do not contain a recommended or target time.
+
+```powershell
+python -m app.learning.time_management.generate_dataset `
+  --games 10 `
+  --sampling-interval 4 `
+  --game-depth 2 `
+  --game-candidate-count 3 `
+  --max-plies 80 `
+  --analysis-budget-ms 1000 `
+  --max-analysis-depth 6 `
+  --remaining-times-ms 300000,120000,30000,10000,3000 `
+  --seed 42 `
+  --output data/time_management/dataset.jsonl
+```
+
+An optional local PGN can be added with `--pgn path/to/games.pgn`; no external dataset is downloaded. The command writes JSONL records to the selected output and a sibling metadata file such as `dataset.metadata.json`. Relative output paths are resolved from `Chess_AI/`.
+
+## Time-management teacher targets (Phase 2B)
+
+Phase 2B reads the raw Phase 2A JSONL without changing it and writes a separate `training_dataset.jsonl` plus `teacher_summary.json`:
+
+```powershell
+python -m app.learning.time_management.teacher `
+  --input data/time_management/dataset.jsonl `
+  --output data/time_management/training_dataset.jsonl `
+  --summary data/time_management/teacher_summary.json
+```
+
+For each consecutive depth pair, the teacher normalizes score change as `abs(score_delta) / (score_scale + abs(score_delta))`, combines it with a binary move-change signal using configurable weights, and discounts the result by a bounded node-growth cost signal. Search nodes are used for the cost adjustment because they are less hardware-dependent than elapsed time. The first transition below `min_gain` is the stopping point; a low-gain first transition selects depth 2 as a confirmation depth. If all observed transitions remain meaningful, the deepest completed depth is selected. The target is that depth's cumulative observed time, capped at `remaining_time_ms - clock_safety_margin_ms`.
+
+Confidence is a heuristic quality score from 0 to 1: more observed transitions and lower average information gain increase it, while a timed-out search applies a configurable penalty. A sample with fewer than two completed depths, or no usable clock after the reserve, is marked `insufficient_data` with no target. This teacher is an offline heuristic, not a statistical probability or a mathematically optimal time. No model is trained by this command.
+
+For a larger offline validation, write to separate `validation_*` files so the Phase 2A raw dataset and existing labeled dataset remain untouched:
+
+```powershell
+python -m app.learning.time_management.generate_dataset `
+  --games 10 --sampling-interval 4 --game-depth 3 `
+  --game-candidate-count 3 --max-plies 40 `
+  --analysis-budget-ms 1000 --max-analysis-depth 6 `
+  --remaining-times-ms 300000,120000,30000,10000,3000 `
+  --seed 202602 --output data/time_management/validation_dataset.jsonl
+
+python -m app.learning.time_management.teacher `
+  --input data/time_management/validation_dataset.jsonl `
+  --output data/time_management/validation_training_dataset.jsonl `
+  --summary data/time_management/validation_teacher_summary.json
+
+python -m app.learning.time_management.validation `
+  --raw data/time_management/validation_dataset.jsonl `
+  --labeled data/time_management/validation_training_dataset.jsonl `
+  --output data/time_management/validation_report.json
+```
+
+The validation report compares raw and labeled records by `sample_id`, confirms the raw fields are preserved, and reports target percentiles and clock-group statistics without assigning a subjective quality score.
+
 ## Genetic Algorithm Laboratory
 
 The isolated laboratory API evolves experimental pawn, knight, bishop, rook, and queen material weights. It uses the existing Alpha-Beta search with an injected evaluator; the default game endpoint still uses the existing material values, including the fixed king value of 20,000.

@@ -1,7 +1,7 @@
 """Minimax search with alpha-beta pruning and no move-ordering heuristics."""
 
 from dataclasses import dataclass
-from time import perf_counter
+from time import monotonic, perf_counter
 from typing import Callable
 
 import chess
@@ -9,6 +9,14 @@ import chess
 from app.engine.evaluation import evaluate
 
 MATE_SCORE = 1_000_000
+
+
+class SearchTimeout(Exception):
+    """Internal signal used to interrupt a search after its deadline."""
+
+    def __init__(self, nodes: int):
+        super().__init__("Alpha-Beta search deadline reached")
+        self.nodes = nodes
 
 
 @dataclass(frozen=True)
@@ -41,6 +49,7 @@ def alpha_beta(
     depth: int,
     evaluator: Callable[[chess.Board], int] = evaluate,
     repetition_penalty: int = 0,
+    deadline: float | None = None,
 ) -> SearchResult:
     """Find a move using Minimax with alpha-beta pruning to ``depth`` plies.
 
@@ -61,15 +70,22 @@ def alpha_beta(
     started_at = perf_counter()
     nodes = 0
 
+    def check_deadline() -> None:
+        if deadline is not None and monotonic() >= deadline:
+            raise SearchTimeout(nodes)
+
     def visit(remaining_depth: int, ply: int, alpha: float, beta: float) -> int:
         nonlocal nodes
+        check_deadline()
         nodes += 1
 
         terminal = _terminal_score(board, ply, repetition_penalty)
         if terminal is not None:
             return terminal
         if remaining_depth == 0:
-            return evaluator(board)
+            score = evaluator(board)
+            check_deadline()
+            return score
 
         if board.turn == chess.WHITE:
             best_score = -MATE_SCORE * 2
@@ -121,6 +137,7 @@ def alpha_beta(
 
         candidates = list(board.legal_moves)
         for move in candidates:
+            check_deadline()
             board.push(move)
             try:
                 score = visit(depth - 1, 1, alpha, beta)
@@ -140,6 +157,7 @@ def alpha_beta(
             if alpha >= beta:
                 break
         score = best_score
+        check_deadline()
 
     elapsed_ms = (perf_counter() - started_at) * 1000
     return SearchResult(best_move, score, nodes, elapsed_ms)

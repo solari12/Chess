@@ -19,3 +19,34 @@ class AIResponse(BaseModel):
     score: int | float
     nodes: int
     time_ms: float
+
+
+class TimedAIRequest(BaseModel):
+    """Request for the separate time-budgeted Alpha-Beta endpoint."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    fen: str = Field(min_length=1, description="Current chess position in FEN format")
+    algorithm: Literal["alpha-beta"]
+    time_budget_ms: int = Field(strict=True, ge=1, le=60_000)
+    max_depth: int = Field(default=64, strict=True, ge=1, le=64)
+
+
+class TimedDepthStats(BaseModel):
+    depth: int
+    move: str
+    score: int
+    nodes: int
+    time_ms: float = Field(description="Cumulative elapsed time from the start of this move search")
+
+
+class TimedAIResponse(BaseModel):
+    move: str | None
+    algorithm: Literal["alpha-beta"]
+    depth: int = Field(description="Compatibility alias for completed_depth")
+    score: int
+    completed_depth: int
+    nodes: int
+    time_ms: float
+    timed_out: bool
+    depths_completed: list[TimedDepthStats]

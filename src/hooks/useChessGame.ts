@@ -27,6 +27,7 @@ import {
 import type { GameTermination, GeneticPlayerProfile, PieceAnimation, PlayerRole, PlayerRoles, PromotionRequest } from "@/types/chess";
 
 const AI_DEPTH = 3;
+const ALPHA_BETA_TEST_BUDGET_MS = 2_000;
 
 export function useChessGame() {
   const [game] = useState<Chess>(createChessGame);
@@ -192,6 +193,14 @@ export function useChessGame() {
 
     const fen = game.fen();
     const turn = game.turn();
+    const aiTimeRemainingMs = getRemainingTimeMs(clockRef.current, turn, Date.now());
+    if (aiTimeRemainingMs <= 0) {
+      writeClock(freezeClockAt(clockRef.current, Date.now(), turn));
+      return;
+    }
+    const timeBudgetMs = currentRole === "alpha_beta"
+      ? Math.max(1, Math.min(ALPHA_BETA_TEST_BUDGET_MS, Math.floor(aiTimeRemainingMs)))
+      : undefined;
     const key = `${fen}:${currentRole}:${currentRole === "genetic" ? geneticProfile?.candidate_id ?? "missing" : ""}`;
     if (aiRequestRef.current?.key === key) {
       const existingRequest = aiRequestRef.current;
@@ -215,10 +224,15 @@ export function useChessGame() {
     aiRequestRef.current = request;
     setAiThinking(true);
 
-    void requestAIMove(fen, currentRole, AI_DEPTH, controller.signal, geneticProfile)
+    void requestAIMove(fen, currentRole, AI_DEPTH, controller.signal, geneticProfile, timeBudgetMs)
       .then((result) => {
         if (!result || aiRequestRef.current !== request || controller.signal.aborted || request.cancelPending) return;
         if (clockRef.current.timeoutColor || game.isGameOver() || game.turn() !== turn || game.fen() !== fen || playerRolesRef.current[turn] !== currentRole) return;
+
+        if (!result.move) {
+          console.error("Chess AI returned no move for a non-terminal position.");
+          return;
+        }
 
         const move = parseUciMove(result.move);
         if (!move) {
@@ -252,7 +266,7 @@ export function useChessGame() {
         setAiThinking(false);
       });
     };
-  }, [clock.timeoutColor, commitMove, currentRole, game, geneticProfile, playerRoles, positionKey]);
+  }, [clock.timeoutColor, commitMove, currentRole, game, geneticProfile, playerRoles, positionKey, writeClock]);
 
   const clockTimes = {
     w: getRemainingTimeMs(clock, "w", clockNow),

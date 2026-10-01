@@ -1,0 +1,112 @@
+{
+  "raw_records": 490,
+  "labeled_records": 480,
+  "insufficient_records": 10,
+  "label_rate": 0.9795918367346939,
+  "insufficient_rate": 0.02040816326530612,
+  "teacher_depth_distribution": {
+    "counts": {
+      "2": 35,
+      "3": 405,
+      "4": 40
+    },
+    "depth_2_fraction": 0.07291666666666667
+  },
+  "teacher_time_ms_distribution": {
+    "min": 14.999999897554517,
+    "median": 250.0,
+    "mean": 323.3374999976756,
+    "max": 922.0000000204891,
+    "p25": 156.99999989010394,
+    "p50": 250.0,
+    "p75": 422.0000000204891,
+    "p90": 718.0000001098961,
+    "p95": 780.9999999590218
+  },
+  "teacher_confidence_distribution": {
+    "min": 0.16997941231517877,
+    "median": 0.3591551387578992,
+    "mean": 0.39755230419615983,
+    "max": 0.749713309921283,
+    "p50": 0.3591551387578992
+  },
+  "information_gain_distribution": {
+    "min": 0.0,
+    "median": 0.659782689719754,
+    "mean": 0.5498874572077013,
+    "max": 0.7484220952619327,
+    "p50": 0.659782689719754,
+    "p75": 0.6991110181051587,
+    "p90": 0.7101845407049953
+  },
+  "search_stability": {
+    "stable_positions": 5,
+    "positions_with_best_move_changes": 445,
+    "positions_with_repeated_best_move_changes": 255,
+    "positions_with_significant_score_changes": 475,
+    "transition_count": 1015
+  },
+  "clock_distribution": {
+    "300000": {
+      "samples": 98,
+      "labeled_count": 96,
+      "median_teacher_time_ms": 250.0,
+      "p90_teacher_time_ms": 711.0000000102445,
+      "median_teacher_depth": 3.0
+    },
+    "120000": {
+      "samples": 98,
+      "labeled_count": 97,
+      "median_teacher_time_ms": 250.0,
+      "p90_teacher_time_ms": 699.3999999947848,
+      "median_teacher_depth": 3.0
+    },
+    "30000": {
+      "samples": 98,
+      "labeled_count": 97,
+      "median_teacher_time_ms": 250.0,
+      "p90_teacher_time_ms": 684.400000004098,
+      "median_teacher_depth": 3.0
+    },
+    "10000": {
+      "samples": 98,
+      "labeled_count": 95,
+      "median_teacher_time_ms": 250.0,
+      "p90_teacher_time_ms": 706.2000000849368,
+      "median_teacher_depth": 3.0
+    },
+    "3000": {
+      "samples": 98,
+      "labeled_count": 95,
+      "median_teacher_time_ms": 250.0,
+      "p90_teacher_time_ms": 700.1999998930846,
+      "median_teacher_depth": 3.0
+    }
+  },
+  "target_variation": {
+    "unique_teacher_time_count": 130,
+    "teacher_time_range_ms": 907.0000001229346,
+    "teacher_time_iqr_ms": 265.00000013038516,
+    "teacher_time_standard_deviation_ms": 214.01160076555536,
+    "positions_with_at_least_one_labeled_clock": 97,
+    "unique_per_position_median_target_count": 60,
+    "per_position_median_teacher_time_ms": {
+      "min": 15.000000013969839,
+      "median": 234.99999986961484,
+      "mean": 319.0927835008533,
+      "max": 906.0000001918525,
+      "p25": 156.99999989010394,
+      "p50": 234.99999986961484,
+      "p75": 405.9999999590218,
+      "p90": 699.7999999672177,
+      "p95": 756.199999991804
+    },
+    "per_position_median_target_iqr_ms": 249.00000006891787,
+    "teacher_depth_unique_count": 3,
+    "clock_group_median_target_range_ms": 0.0,
+    "teacher_depth_concentrated_at_2_or_more": false
+  },
+  "teacher_config_threshold": {
+    "min_gain_for_continue": 0.12
+  }
+}

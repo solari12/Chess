@@ -1,0 +1,49 @@
+{
+  "raw_records": 15,
+  "labeled_samples": 10,
+  "insufficient_samples": 5,
+  "label_rate": 0.6666666666666666,
+  "teacher_time_ms": {
+    "min": 14.999999897554517,
+    "median": 15.999999828636646,
+    "mean": 15.59999999590218,
+    "max": 16.00000006146729
+  },
+  "teacher_depth": {
+    "min": 2,
+    "median": 2.0,
+    "mean": 2.0,
+    "max": 2
+  },
+  "teacher_confidence": {
+    "min": 0.17661764705882355,
+    "median": 0.4216421568627451,
+    "mean": 0.42164215686274514,
+    "max": 0.6666666666666666
+  },
+  "clock_distribution": {
+    "3000": 3,
+    "10000": 3,
+    "30000": 3,
+    "120000": 3,
+    "300000": 3
+  },
+  "samples_where_best_move_changed": 10,
+  "samples_with_significant_score_change": 10,
+  "samples_with_stable_search": 5,
+  "samples_with_insufficient_depth": 0,
+  "insufficient_reasons": {
+    "selected_depth_time_unmeasurable": 5
+  },
+  "teacher_config": {
+    "score_scale": 100.0,
+    "move_change_weight": 0.65,
+    "score_change_weight": 0.35,
+    "cost_weight": 0.25,
+    "min_gain_for_continue": 0.12,
+    "clock_safety_margin_ms": 300.0,
+    "confidence_transition_scale": 3,
+    "timeout_confidence_multiplier": 0.8
+  },
+  "teacher_note": "Heuristic offline target; not a mathematically optimal time or a statistical probability."
+}

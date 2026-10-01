@@ -19,12 +19,15 @@ export function parseUciMove(uci: string): ParsedUciMove | null {
 }
 
 export interface AIResponse {
-  move: string;
+  move: string | null;
   algorithm: "minimax" | "alpha-beta" | "genetic";
   depth: number;
   score: number;
   nodes: number;
   time_ms: number;
+  completed_depth?: number;
+  timed_out?: boolean;
+  depths_completed?: Array<{ depth: number; move: string; score: number; nodes: number; time_ms: number }>;
 }
 
 export async function requestAIMove(
@@ -33,15 +36,23 @@ export async function requestAIMove(
   depth: number,
   signal?: AbortSignal,
   geneticProfile?: GeneticPlayerProfile | null,
+  timeBudgetMs?: number,
 ): Promise<AIResponse | null> {
   if (role === "human") return null;
 
   const baseUrl = (process.env.NEXT_PUBLIC_CHESS_AI_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "");
-  const endpoint = role === "genetic" ? "/api/lab/genetic/play-move" : "/api/ai/move";
+  const timedSearch = role === "alpha_beta" && timeBudgetMs !== undefined;
+  const endpoint = role === "genetic"
+    ? "/api/lab/genetic/play-move"
+    : timedSearch
+      ? "/api/ai/move/timed"
+      : "/api/ai/move";
   let body: object;
   if (role === "genetic") {
     if (!geneticProfile) throw new Error("Choose a trained genetic candidate before starting this game.");
     body = { fen, depth, weights: geneticProfile.weights };
+  } else if (timedSearch) {
+    body = { fen, algorithm: "alpha-beta", time_budget_ms: timeBudgetMs, max_depth: 64 };
   } else {
     body = { fen, algorithm: role, depth };
   }
@@ -62,7 +73,7 @@ export async function requestAIMove(
     typeof result !== "object" ||
     result === null ||
     !("move" in result) ||
-    typeof result.move !== "string" ||
+    (typeof result.move !== "string" && result.move !== null) ||
     !("algorithm" in result) ||
     typeof result.algorithm !== "string" ||
     !("time_ms" in result) ||

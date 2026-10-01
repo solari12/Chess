@@ -39,6 +39,31 @@ describe("chess AI client", () => {
     );
   });
 
+  it("uses the additive timed endpoint for Alpha-Beta when a budget is provided", async () => {
+    const responseData = {
+      move: "e2e4",
+      algorithm: "alpha-beta",
+      depth: 2,
+      score: 25,
+      nodes: 160,
+      time_ms: 18,
+      completed_depth: 2,
+      timed_out: true,
+      depths_completed: [{ depth: 1, move: "e2e4", score: 10, nodes: 20, time_ms: 2 }],
+    };
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(responseData), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(requestAIMove("start-fen", "alpha_beta", 3, undefined, null, 2_000)).resolves.toEqual(responseData);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:8000/api/ai/move/timed",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ fen: "start-fen", algorithm: "alpha-beta", time_budget_ms: 2_000, max_depth: 64 }),
+      }),
+    );
+  });
+
   it("plays the trained genetic candidate through its isolated evaluator endpoint", async () => {
     const profile = {
       candidate_id: "I0010",
