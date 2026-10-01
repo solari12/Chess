@@ -37,6 +37,7 @@ export async function requestAIMove(
   signal?: AbortSignal,
   geneticProfile?: GeneticPlayerProfile | null,
   timeBudgetMs?: number,
+  remainingTimeMs?: number,
 ): Promise<AIResponse | null> {
   if (role === "human") return null;
 
@@ -52,7 +53,13 @@ export async function requestAIMove(
     if (!geneticProfile) throw new Error("Choose a trained genetic candidate before starting this game.");
     body = { fen, depth, weights: geneticProfile.weights };
   } else if (timedSearch) {
-    body = { fen, algorithm: "alpha-beta", time_budget_ms: timeBudgetMs, max_depth: 64 };
+    body = {
+      fen,
+      algorithm: "alpha-beta",
+      time_budget_ms: timeBudgetMs,
+      max_depth: 64,
+      ...(remainingTimeMs === undefined ? {} : { remaining_time_ms: Math.max(0, Math.floor(remainingTimeMs)) }),
+    };
   } else {
     body = { fen, algorithm: role, depth };
   }

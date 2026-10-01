@@ -224,7 +224,7 @@ export function useChessGame() {
     aiRequestRef.current = request;
     setAiThinking(true);
 
-    void requestAIMove(fen, currentRole, AI_DEPTH, controller.signal, geneticProfile, timeBudgetMs)
+    void requestAIMove(fen, currentRole, AI_DEPTH, controller.signal, geneticProfile, timeBudgetMs, aiTimeRemainingMs)
       .then((result) => {
         if (!result || aiRequestRef.current !== request || controller.signal.aborted || request.cancelPending) return;
         if (clockRef.current.timeoutColor || game.isGameOver() || game.turn() !== turn || game.fen() !== fen || playerRolesRef.current[turn] !== currentRole) return;

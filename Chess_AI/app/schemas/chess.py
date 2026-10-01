@@ -29,6 +29,13 @@ class TimedAIRequest(BaseModel):
     fen: str = Field(min_length=1, description="Current chess position in FEN format")
     algorithm: Literal["alpha-beta"]
     time_budget_ms: int = Field(strict=True, ge=1, le=60_000)
+    remaining_time_ms: int | None = Field(
+        default=None,
+        strict=True,
+        ge=0,
+        le=259_200_000,
+        description="Current player's remaining game clock; optional for legacy clients.",
+    )
     max_depth: int = Field(default=64, strict=True, ge=1, le=64)
 
 

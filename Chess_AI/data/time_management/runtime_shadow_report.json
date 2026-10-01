@@ -1,0 +1,140 @@
+{
+  "phase": "2F",
+  "shadow_record_count": 5,
+  "model_versions": [
+    "phase2c_20261001T122840Z_seed42"
+  ],
+  "raw_prediction_ms": {
+    "count": 5,
+    "min": 444.4696801093161,
+    "median": 452.2611252170632,
+    "mean": 452.85314258106865,
+    "p90": 459.44897818329065,
+    "max": 463.386276546116
+  },
+  "shadow_budget_ms": {
+    "count": 5,
+    "min": 444.4696801093161,
+    "median": 452.2611252170632,
+    "mean": 452.85314258106865,
+    "p90": 459.44897818329065,
+    "max": 463.386276546116
+  },
+  "actual_time_ms": {
+    "count": 5,
+    "min": 952.9999999795109,
+    "median": 952.9999999795109,
+    "mean": 952.9999999795109,
+    "p90": 952.9999999795109,
+    "max": 952.9999999795109
+  },
+  "prediction_vs_actual": {
+    "record_count": 5,
+    "mae_ms": 500.14685739844225,
+    "prediction_above_actual_percent": 0.0,
+    "prediction_below_actual_percent": 100.0,
+    "prediction_equal_actual_percent": 0.0
+  },
+  "raw_prediction_vs_actual": {
+    "record_count": 5,
+    "mae_ms": 500.14685739844225,
+    "prediction_above_actual_percent": 0.0,
+    "prediction_below_actual_percent": 100.0,
+    "prediction_equal_actual_percent": 0.0
+  },
+  "prediction_vs_teacher": {
+    "matched_record_count": 0,
+    "raw_prediction_mae_ms": null,
+    "shadow_budget_mae_ms": null
+  },
+  "clock_cap": {
+    "activated_count": 0,
+    "activation_rate": 0.0
+  },
+  "recommendation_by_clock_bucket": {
+    "30s_plus": {
+      "record_count": 2,
+      "shadow_budget_ms": {
+        "count": 2,
+        "min": 452.2611252170632,
+        "median": 457.8237008815896,
+        "mean": 457.8237008815896,
+        "p90": 462.2737614132107,
+        "max": 463.386276546116
+      },
+      "actual_time_ms": {
+        "count": 2,
+        "min": 952.9999999795109,
+        "median": 952.9999999795109,
+        "mean": 952.9999999795109,
+        "p90": 952.9999999795109,
+        "max": 952.9999999795109
+      }
+    },
+    "10s_to_30s": {
+      "record_count": 3,
+      "shadow_budget_ms": {
+        "count": 3,
+        "min": 444.4696801093161,
+        "median": 450.60560039379516,
+        "mean": 449.53943704738793,
+        "p90": 452.9555445900011,
+        "max": 453.54303063905263
+      },
+      "actual_time_ms": {
+        "count": 3,
+        "min": 952.9999999795109,
+        "median": 952.9999999795109,
+        "mean": 952.9999999795109,
+        "p90": 952.9999999795109,
+        "max": 952.9999999795109
+      }
+    },
+    "3s_to_10s": {
+      "record_count": 0,
+      "shadow_budget_ms": {
+        "count": 0,
+        "min": null,
+        "median": null,
+        "mean": null,
+        "p90": null,
+        "max": null
+      },
+      "actual_time_ms": {
+        "count": 0,
+        "min": null,
+        "median": null,
+        "mean": null,
+        "p90": null,
+        "max": null
+      }
+    },
+    "under_3s": {
+      "record_count": 0,
+      "shadow_budget_ms": {
+        "count": 0,
+        "min": null,
+        "median": null,
+        "mean": null,
+        "p90": null,
+        "max": null
+      },
+      "actual_time_ms": {
+        "count": 0,
+        "min": null,
+        "median": null,
+        "mean": null,
+        "p90": null,
+        "max": null
+      }
+    }
+  },
+  "inference_latency_ms": {
+    "count": 5,
+    "min": 32.67399989999831,
+    "median": 58.49909991957247,
+    "mean": 59.90089997649193,
+    "p90": 83.67440006695688,
+    "max": 98.95700006745756
+  }
+}

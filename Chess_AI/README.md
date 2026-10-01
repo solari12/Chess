@@ -148,6 +148,41 @@ Records are split by FEN with `GroupShuffleSplit`, so clock variants of a positi
 
 The current validation corpus has only 98 FEN groups, and its teacher targets did not vary by clock group. These models are an experimental predictive-signal baseline, not production-ready time management, proof of clock awareness, chess strength, or optimal timing. The command does not integrate a model into Chess runtime.
 
+## Phase 2F — Runtime Shadow Evaluation
+
+Shadow mode runs the existing Phase 2C Random Forest **after** the timed Alpha-Beta search has finished. The prediction is diagnostic only: it does not set or change the actual search budget, depth, move selection, timeout handling, or game result. The frontend sends the current side's remaining clock to the timed endpoint; legacy callers may omit it, in which case the requested search budget is used as the clock input.
+
+Runtime inference uses the shared `model_features.py` feature order and the existing artifact `data/time_management/models/phase2c_20261001T122840Z_seed42/random_forest.joblib`. The Phase 2E safety reserve (300 ms) is applied only to `shadow_budget_ms`; the actual engine retains its existing budget and 50 ms search-deadline reserve. One JSONL record is appended after each completed timed search to `data/time_management/runtime_shadow.jsonl`. Records include FEN, remaining clock, actual search time/depth/nodes/timeout/move, model/version, raw prediction, capped shadow budget, usable clock, cap status, and prediction latency. A shadow artifact or logging error is logged and cannot fail the already completed search response.
+
+Run a small sample of real timed engine searches (this plays the engine against itself and appends records):
+
+```powershell
+python -m app.learning.time_management.run_shadow_sample `
+  --searches 5 `
+  --time-budget-ms 1000 `
+  --remaining-time-ms 30000 `
+  --max-depth 6
+```
+
+Evaluate the JSONL log and write `data/time_management/runtime_shadow_report.json`:
+
+```powershell
+python -m app.learning.time_management.evaluate_shadow `
+  --input data/time_management/runtime_shadow.jsonl `
+  --output data/time_management/runtime_shadow_report.json
+```
+
+The report includes raw and capped prediction distributions, actual-time distributions, prediction-versus-actual MAE and above/below rates, clock-cap rate, clock-bucket summaries, and inference latency. Runtime does not run the teacher. To compare with existing labels where FEN and clock match, pass an optional labeled dataset:
+
+```powershell
+python -m app.learning.time_management.evaluate_shadow `
+  --input data/time_management/runtime_shadow.jsonl `
+  --teacher-dataset data/time_management/validation_training_dataset.jsonl `
+  --output data/time_management/runtime_shadow_report.json
+```
+
+Inspect the raw per-search records in `runtime_shadow.jsonl` and aggregate metrics in `runtime_shadow_report.json`. Shadow mode is not a learned runtime time allocator and does not authorize the model to control engine searches.
+
 ## Genetic Algorithm Laboratory
 
 The isolated laboratory API evolves experimental pawn, knight, bishop, rook, and queen material weights. It uses the existing Alpha-Beta search with an injected evaluator; the default game endpoint still uses the existing material values, including the fixed king value of 20,000.
