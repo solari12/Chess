@@ -28,6 +28,10 @@ export interface GameMoveTrace {
   evaluation: number;
   nodes: number;
   depth: number;
+  search_budget_ms: number;
+  search_time_ms: number;
+  policy_time_ms: number;
+  remaining_time_ms: number;
 }
 
 export interface CandidateGameTrace {
@@ -44,7 +48,19 @@ export interface CandidateGameTrace {
   result: "win" | "draw" | "loss" | null;
   plies: number;
   fitness_delta: number;
+  termination: string | null;
   moves: GameMoveTrace[];
+}
+
+export interface GameReport {
+  total_games: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  draws_by_termination_reason: Record<string, number>;
+  termination_counts: Record<string, number>;
+  average_plies: number;
+  max_plies: number;
 }
 
 export interface MutationEvent {
@@ -62,13 +78,39 @@ export interface GeneOrigin {
 }
 
 export interface ChildEvent {
+  child_id?: string;
+  generation?: number;
   individual: Individual;
   parent_a_id: string;
   parent_b_id: string;
   crossover_weights: PieceWeights;
+  pre_mutation_weights?: PieceWeights;
+  post_mutation_weights?: PieceWeights;
   gene_origins: GeneOrigin[];
   mutations: MutationEvent[];
 }
+
+export type EvolutionLineageEntry =
+  | {
+      kind: "offspring";
+      id: string;
+      generation: number;
+      individual: Individual;
+      parent_a_id: string;
+      parent_b_id: string;
+      pre_mutation_weights: PieceWeights;
+      post_mutation_weights: PieceWeights;
+      gene_origins: GeneOrigin[];
+      mutations: MutationEvent[];
+    }
+  | {
+      kind: "elite_clone";
+      id: string;
+      generation: number;
+      individual: Individual;
+      parent_a_id: string;
+      post_mutation_weights: PieceWeights;
+    };
 
 export interface ParentPair {
   parent_a_id: string;
@@ -86,10 +128,15 @@ export interface EvolutionStep {
   average_fitness: number;
 }
 
+export type EvolutionLineageSnapshot = Pick<
+  EvolutionStep,
+  "generation" | "population" | "children" | "elite_individuals"
+>;
+
 export interface GeneticConfig {
   population_size: number;
   games_per_individual: number;
-  search_depth: number;
+  time_control_ms: number;
   mutation_rate: number;
   mutation_strength: number;
   elite_count: number;
@@ -106,11 +153,68 @@ export interface GeneticState {
   config: GeneticConfig | null;
   population: Individual[];
   history: EvolutionStep[];
+  active_lineage?: EvolutionLineageSnapshot | null;
   game_traces: CandidateGameTrace[];
+  game_report: GameReport;
+}
+
+export function individualById(population: Individual[], individualId: string | null): Individual | null {
+  return individualId === null ? null : population.find((individual) => individual.id === individualId) ?? null;
+}
+
+export function lineageEntriesForStep(step: EvolutionLineageSnapshot): EvolutionLineageEntry[] {
+  // Older running API processes omit the explicit child_id/generation and
+  // pre/post-mutation fields. The nested individual ID is still stable and
+  // lets us render that lineage without relying on a sorted population index.
+  const offspringById = new Map(step.children.map((child) => [child.child_id ?? child.individual.id, child]));
+  const eliteById = new Map(step.elite_individuals.map((elite) => [elite.id, elite]));
+  return step.population.flatMap((individual): EvolutionLineageEntry[] => {
+    const child = offspringById.get(individual.id);
+    if (child) {
+      const childId = child.child_id ?? child.individual.id;
+      return [{
+        kind: "offspring",
+        id: childId,
+        generation: child.generation ?? child.individual.generation,
+        individual: child.individual,
+        parent_a_id: child.parent_a_id,
+        parent_b_id: child.parent_b_id,
+        pre_mutation_weights: child.pre_mutation_weights ?? child.crossover_weights,
+        post_mutation_weights: child.post_mutation_weights ?? child.individual.weights,
+        gene_origins: child.gene_origins,
+        mutations: child.mutations,
+      }];
+    }
+    const elite = eliteById.get(individual.id);
+    if (elite?.elite_from) {
+      return [{
+        kind: "elite_clone",
+        id: elite.id,
+        generation: elite.generation,
+        individual: elite,
+        parent_a_id: elite.elite_from,
+        post_mutation_weights: elite.weights,
+      }];
+    }
+    return [];
+  });
+}
+
+export function replayCandidateWeights(trace: CandidateGameTrace): PieceWeights {
+  return trace.candidate_weights;
+}
+
+export function candidateTraceById(
+  traces: CandidateGameTrace[],
+  candidateId: string,
+  gameIndex: number,
+): CandidateGameTrace | null {
+  return traces.find((trace) => trace.candidate_id === candidateId && trace.game_index === gameIndex) ?? null;
 }
 
 export type GeneticEvent =
   | { type: "evaluation_started"; generation: number; candidates_total: number; completed_candidates: number; games_per_individual: number }
+  | { type: "generation_lineage"; lineage: EvolutionLineageSnapshot }
   | { type: "candidate_started"; generation: number; candidate_id: string; candidate_weights: PieceWeights; candidate_index: number; candidates_total: number; completed_candidates: number }
   | { type: "game_started"; generation: number; candidate_id: string; candidate_weights: PieceWeights; candidate_color: "white" | "black"; color: "white" | "black"; opponent_id: string; opponent_type: "baseline" | "population" | "elite"; opponent_weights: PieceWeights; game_index: number; games_total: number; baseline_weights: PieceWeights; candidate_index: number; candidates_total: number; completed_candidates: number }
   | ({ type: "move_played"; generation: number; candidate_id: string; candidate_color: "white" | "black"; opponent_id: string; opponent_type: "baseline" | "population" | "elite"; game_index: number; move: string } & GameMoveTrace & { candidate_index: number; candidates_total: number; completed_candidates: number })

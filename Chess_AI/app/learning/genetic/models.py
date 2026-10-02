@@ -66,10 +66,14 @@ class ParentPair:
 
 @dataclass
 class ChildEvent:
+    child_id: str
+    generation: int
     individual: Individual
     parent_a_id: str
     parent_b_id: str
     crossover_weights: PieceWeights
+    pre_mutation_weights: PieceWeights
+    post_mutation_weights: PieceWeights
     gene_origins: list[GeneOrigin]
     mutations: list[MutationEvent] = field(default_factory=list)
 
@@ -97,6 +101,10 @@ class GameMoveTrace:
     evaluation: float
     nodes: int
     depth: int
+    search_budget_ms: float = 0.0
+    search_time_ms: float = 0.0
+    policy_time_ms: float = 0.0
+    remaining_time_ms: int = 0
 
 
 @dataclass
@@ -114,6 +122,7 @@ class CandidateGameTrace:
     result: Literal["win", "draw", "loss"] | None = None
     plies: int = 0
     fitness_delta: int = 0
+    termination: str | None = None
     moves: list[GameMoveTrace] = field(default_factory=list)
 
 
@@ -121,7 +130,7 @@ class CandidateGameTrace:
 class ExperimentConfig:
     population_size: int = 10
     games_per_individual: int = 8
-    search_depth: int = 2
+    time_control_ms: int = 5_000
     mutation_rate: float = 0.15
     mutation_strength: int = 25
     elite_count: int = 2

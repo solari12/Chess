@@ -81,6 +81,19 @@ class IterativeSearchTests(unittest.TestCase):
         self.assertEqual(result.completed_depth, 1)
         self.assertTrue(seen_positions)
 
+    def test_repetition_penalty_is_forwarded_to_alpha_beta(self) -> None:
+        completed = SearchResult(chess.Move.from_uci("e2e4"), 0, 10, 0.1)
+        with patch("app.engine.iterative_search.alpha_beta", return_value=completed) as search_mock:
+            result = iterative_search(
+                chess.Board(),
+                time_budget_ms=1_000,
+                max_depth=1,
+                repetition_penalty=12,
+            )
+
+        self.assertEqual(result.completed_depth, 1)
+        self.assertEqual(search_mock.call_args.kwargs["repetition_penalty"], 12)
+
     def test_terminal_position_returns_no_move_without_search(self) -> None:
         checkmate = chess.Board("7k/6Q1/6K1/8/8/8/8/8 b - - 0 1")
         result = iterative_search(checkmate, time_budget_ms=2_000, max_depth=64)

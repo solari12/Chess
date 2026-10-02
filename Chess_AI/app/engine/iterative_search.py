@@ -42,6 +42,7 @@ def iterative_search(
     max_depth: int = MAX_ITERATIVE_DEPTH,
     evaluator: Evaluator = evaluate,
     safety_margin_ms: float = TIME_SAFETY_MARGIN_MS,
+    repetition_penalty: int = 0,
 ) -> IterativeSearchResult:
     """Return the deepest fully completed Alpha-Beta result before deadline.
 
@@ -82,7 +83,13 @@ def iterative_search(
             timed_out = True
             break
         try:
-            result = alpha_beta(board, depth, evaluator=evaluator, deadline=deadline)
+            result = alpha_beta(
+                board,
+                depth,
+                evaluator=evaluator,
+                deadline=deadline,
+                repetition_penalty=repetition_penalty,
+            )
         except SearchTimeout as timeout:
             total_nodes += timeout.nodes
             timed_out = True

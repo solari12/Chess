@@ -16,12 +16,14 @@ from app.engine.alpha_beta import alpha_beta
 from app.learning.genetic.fitness import evaluate_with_weights
 from app.learning.genetic.evolution import GeneticEvolution
 from app.learning.genetic.models import ExperimentConfig, PieceWeights
+from app.learning.genetic.reporting import summarize_game_traces
 
 router = APIRouter(prefix="/api/lab/genetic", tags=["genetic-laboratory"])
 _experiment: GeneticEvolution | None = None
 _experiment_lock = Lock()
 _stream_active = False
 _active_stream_snapshot: dict[str, Any] | None = None
+_active_lineage_payload: dict[str, Any] | None = None
 _cancel_requested = Event()
 _stream_finished = Event()
 _stream_finished.set()
@@ -36,7 +38,7 @@ class StartExperimentRequest(BaseModel):
 
     population_size: int = Field(default=10, ge=2, le=20)
     games_per_individual: int = Field(default=8, ge=4, le=8)
-    search_depth: int = Field(default=2, ge=1, le=100)
+    time_control_ms: int = Field(default=5_000, ge=1_000, le=600_000)
     mutation_rate: float = Field(default=0.15, ge=0, le=1)
     mutation_strength: int = Field(default=25, ge=1, le=100)
     elite_count: int = Field(default=2, ge=0)
@@ -117,13 +119,19 @@ def _state_payload(*, allow_active_state: bool = False) -> dict[str, Any]:
             "population": [],
             "history": [],
             "game_traces": [],
+            "game_report": summarize_game_traces([]),
         }
     if _stream_active and not allow_active_state and _active_stream_snapshot is not None:
         payload = deepcopy(_active_stream_snapshot)
         payload["status"] = "running"
+        payload["active_lineage"] = deepcopy(_active_lineage_payload)
+        payload["game_report"] = summarize_game_traces(
+            _experiment.state.game_traces if _experiment is not None else []
+        )
         return payload
     payload = asdict(_experiment.state)
     payload["generation_limit"] = _experiment.config.generations
+    payload["game_report"] = summarize_game_traces(_experiment.state.game_traces)
     return payload
 
 
@@ -223,8 +231,12 @@ def _stream_response(
     disconnected = Event()
 
     def publish(event: dict[str, object]) -> None:
+        global _active_lineage_payload
         if _cancel_requested.is_set():
             raise EvaluationCancelled()
+        if event.get("type") == "generation_lineage" and isinstance(event.get("lineage"), dict):
+            with _experiment_lock:
+                _active_lineage_payload = deepcopy(event["lineage"])
         while not disconnected.is_set():
             try:
                 events.put(event, timeout=0.1)
@@ -233,7 +245,7 @@ def _stream_response(
                 continue
 
     def run_evaluation() -> None:
-        global _stream_active, _active_stream_snapshot
+        global _stream_active, _active_stream_snapshot, _active_lineage_payload
         try:
             with _experiment_lock:
                 if _experiment is not experiment:
@@ -257,6 +269,7 @@ def _stream_response(
             with _experiment_lock:
                 _stream_active = False
                 _active_stream_snapshot = None
+                _active_lineage_payload = None
                 _stream_finished.set()
             while not disconnected.is_set():
                 try:
@@ -293,10 +306,11 @@ def _stream_response(
 
 
 def _claim_stream() -> None:
-    global _stream_active, _active_stream_snapshot
+    global _stream_active, _active_stream_snapshot, _active_lineage_payload
     if _stream_active:
         raise HTTPException(status_code=409, detail="An evaluation stream is already active")
     _active_stream_snapshot = _state_payload()
+    _active_lineage_payload = None
     _cancel_requested.clear()
     _stream_finished.clear()
     _stream_active = True

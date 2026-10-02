@@ -181,7 +181,14 @@ API ở `app/api/genetic_lab.py`, prefix `/api/lab/genetic`:
 | `POST /reset` | Xóa experiment trong process hiện tại |
 | `POST /play-move` | Tìm nước với chromosome gửi lên; depth API 1–4 |
 
-Defaults: population 10, 8 games/candidate, depth 2, mutation rate 0.15, mutation strength 25, 2 elites, tournament size 3, tối đa 200 plies và 20 generations. State ở RAM của một backend process; restart backend sẽ mất lịch sử. Không có model GA được lưu lâu dài.
+Defaults: population 10, 8 games/candidate, 5 seconds of whole-game clock per side, mutation rate 0.15, mutation strength 25, 2 elites, tournament size 3, maximum 200 plies, and 20 generations. State lives in one backend process and is lost when the backend restarts. GA does not persist a trained model.
+
+
+### GA search and time control
+
+Candidate fitness no longer accepts a fixed search depth. The experiment config exposes `time_control_ms`, a whole-game clock for each side (1,000 to 600,000 ms; the UI displays seconds). Every turn calls the existing Phase 2H `decide_search_budget` with that side's remaining clock. Its bounded probe and frozen model produce a budget subject to the existing 300 ms reserve and fallback behavior. Both the probe and the main search use the active side's candidate/opponent piece weights. The main search uses existing `iterative_search` through its existing maximum-depth limit; the completed depth is recorded per move as observed telemetry.
+
+Each color starts with the same configured clock, and elapsed policy plus search time is charged to that side. Fitness remains wins minus losses, with timeout adjudication and the existing ply-limit draw. The production `TIME_MANAGEMENT_ENABLED` flag still controls only production chess endpoints; GA directly uses the shared Phase 2H policy for its training evaluations. The separate Genetic AI `/play-move` endpoint retains its depth setting because it is for interactive play, not GA fitness evaluation.
 
 ## Tests
 
@@ -205,7 +212,7 @@ python -m unittest tests.test_time_management_phase2f2 -v
 python -m unittest discover -s tests -v
 ```
 
-`test_time_management_dataset.py` kiểm tra raw schema/generator; `teacher.py` kiểm tra nhãn và leakage; `models.py` kiểm tra features/training artifact; `evaluation.py` kiểm tra Phase 2D; phase2e/shadow/phase2f1/phase2f2 kiểm tra cap, logging, probe và holdout. Full backend hiện có một lỗi GA đã biết: `test_candidate_weights_use_engine_material_evaluator_and_fixed_king` mong 155 nhưng kết quả là 162; lỗi đó không thuộc time-management pipeline.
+`test_time_management_dataset.py` kiểm tra raw schema/generator; `teacher.py` kiểm tra nhãn và leakage; `models.py` kiểm tra features/training artifact; `evaluation.py` kiểm tra Phase 2D; phase2e/shadow/phase2f1/phase2f2 kiểm tra cap, logging, probe và holdout.
 
 ## Quy tắc reproducibility và an toàn dữ liệu
 

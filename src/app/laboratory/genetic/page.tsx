@@ -19,9 +19,14 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   getGeneticState,
+  candidateTraceById,
+  individualById,
+  lineageEntriesForStep,
+  replayCandidateWeights,
   resetGeneticExperiment,
   streamGeneticExperiment,
   type CandidateGameTrace,
+  type EvolutionLineageSnapshot,
   type EvolutionStep,
   type GeneticEvent,
   type GeneticConfig,
@@ -33,7 +38,7 @@ import {
 const initialConfig: GeneticConfig = {
   population_size: 10,
   games_per_individual: 8,
-  search_depth: 2,
+  time_control_ms: 5_000,
   mutation_rate: 0.15,
   mutation_strength: 25,
   elite_count: 2,
@@ -68,6 +73,7 @@ export default function GeneticLaboratoryPage() {
   const [selectedGeneration, setSelectedGeneration] = useState<number | null>(null);
   const [selectedIndividualId, setSelectedIndividualId] = useState<string | null>(null);
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
+  const [pendingLineage, setPendingLineage] = useState<EvolutionLineageSnapshot | null>(null);
   const [paused, setPaused] = useState(false);
   const [liveEvents, setLiveEvents] = useState<GeneticEvent[]>([]);
   const [liveTraces, setLiveTraces] = useState<CandidateGameTrace[]>([]);
@@ -93,8 +99,11 @@ export default function GeneticLaboratoryPage() {
     } else if (event.type === "state") {
       latestState.current = event.state;
       setState(event.state);
+      setPendingLineage(null);
       setProgressEvent(event);
       setLiveTraces(event.state.game_traces);
+    } else if (event.type === "generation_lineage") {
+      setPendingLineage(event.lineage);
     }
 
     if (event.type === "game_started") {
@@ -114,16 +123,17 @@ export default function GeneticLaboratoryPage() {
           result: null,
           plies: 0,
           fitness_delta: 0,
+          termination: null,
           moves: [],
         },
       ]);
     } else if (event.type === "move_played") {
       setLiveTraces((current) => current.map((trace) => trace.candidate_id === event.candidate_id && trace.game_index === event.game_index
-        ? { ...trace, moves: [...trace.moves, { ply: event.ply, move_number: event.move_number, color: event.color, san: event.san, uci: event.uci, fen: event.fen, evaluation: event.evaluation, nodes: event.nodes, depth: event.depth }] }
+        ? { ...trace, moves: [...trace.moves, { ply: event.ply, move_number: event.move_number, color: event.color, san: event.san, uci: event.uci, fen: event.fen, evaluation: event.evaluation, nodes: event.nodes, depth: event.depth, search_budget_ms: event.search_budget_ms, search_time_ms: event.search_time_ms, policy_time_ms: event.policy_time_ms, remaining_time_ms: event.remaining_time_ms }] }
         : trace));
     } else if (event.type === "game_finished") {
       setLiveTraces((current) => current.map((trace) => trace.candidate_id === event.candidate_id && trace.game_index === event.game_index
-        ? { ...trace, result: event.result, plies: event.plies, fitness_delta: event.fitness_delta }
+        ? { ...trace, result: event.result, plies: event.plies, fitness_delta: event.fitness_delta, termination: event.termination }
         : trace));
     }
   };
@@ -134,6 +144,7 @@ export default function GeneticLaboratoryPage() {
       .then((result) => {
         if (!mounted) return;
         setState(result);
+        setPendingLineage(result.active_lineage ?? null);
         latestState.current = result;
         if (result.config) setConfig(result.config);
         setLiveTraces(result.game_traces ?? []);
@@ -158,6 +169,7 @@ export default function GeneticLaboratoryPage() {
         const result = await getGeneticState();
         if (!mounted) return;
         setState(result);
+        setPendingLineage(result.active_lineage ?? null);
         latestState.current = result;
         setLiveTraces(result.game_traces ?? []);
       } catch {
@@ -176,14 +188,14 @@ export default function GeneticLaboratoryPage() {
     const generation = selectedGeneration ?? state.generation;
     return state.history.find((step) => step.generation === generation) ?? state.history.at(-1) ?? null;
   }, [selectedGeneration, state]);
+  const visualizerSnapshot = selectedGeneration === null && pendingLineage
+    ? pendingLineage
+    : snapshot;
   const bestCandidate = state?.history.at(-1)?.best_individual ?? null;
-  const previousSnapshot = state?.history.find((step) => step.generation === (snapshot?.generation ?? 0) - 1);
-  const selectedIndividual = snapshot?.population.find((individual) => individual.id === selectedIndividualId)
+  const previousSnapshot = state?.history.find((step) => step.generation === (visualizerSnapshot?.generation ?? 0) - 1);
+  const selectedIndividual = snapshot ? individualById(snapshot.population, selectedIndividualId)
     ?? snapshot?.best_individual
-    ?? null;
-  const selectedChild = snapshot?.children.find((child) => child.individual.id === selectedChildId)
-    ?? snapshot?.children[0]
-    ?? null;
+    ?? null : null;
   const busy = operation !== null;
   const status = operation === "run" || operation === "step" || operation === "start"
     ? paused && state?.status !== "complete" ? operation === "run" ? "PAUSING AFTER GEN" : "PAUSED" : "EVOLVING"
@@ -309,8 +321,28 @@ export default function GeneticLaboratoryPage() {
     ? [...snapshot.population].sort((left, right) => (right.fitness ?? -Infinity) - (left.fitness ?? -Infinity))
     : [];
   const displayedTrace = replay
-    ? liveTraces.find((trace) => trace.candidate_id === replay.candidate_id && trace.game_index === replay.game_index) ?? null
+    ? candidateTraceById(liveTraces, replay.candidate_id, replay.game_index)
     : liveTraces.at(-1) ?? null;
+  const gameReport = useMemo(() => {
+    const completed = liveTraces.filter((trace) => trace.result !== null);
+    const drawsByReason: Record<string, number> = {};
+    for (const trace of completed) {
+      if (trace.result === "draw") {
+        const reason = trace.termination ?? "other";
+        drawsByReason[reason] = (drawsByReason[reason] ?? 0) + 1;
+      }
+    }
+    const plies = completed.map((trace) => trace.plies);
+    return {
+      total_games: completed.length,
+      wins: completed.filter((trace) => trace.result === "win").length,
+      draws: completed.filter((trace) => trace.result === "draw").length,
+      losses: completed.filter((trace) => trace.result === "loss").length,
+      draws_by_termination_reason: drawsByReason,
+      average_plies: plies.length ? plies.reduce((total, ply) => total + ply, 0) / plies.length : 0,
+      max_plies: plies.length ? Math.max(...plies) : 0,
+    };
+  }, [liveTraces]);
   const displayedPly = replay ? Math.min(replay.ply, displayedTrace?.moves.length ?? 0) : displayedTrace?.moves.length ?? 0;
   const displayedMove = displayedTrace?.moves[displayedPly - 1] ?? null;
   const displayedFen = displayedMove?.fen ?? "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -356,7 +388,7 @@ export default function GeneticLaboratoryPage() {
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
           <NumberControl label="Population" value={config.population_size} min={2} max={20} onChange={(value) => setConfig((current) => ({ ...current, population_size: value, games_per_individual: Math.min(current.games_per_individual, Math.min(8, value * 2)), elite_count: Math.min(current.elite_count, value - 1), tournament_size: Math.min(current.tournament_size, value) }))} />
           <NumberControl label="Games / candidate" value={config.games_per_individual} min={4} max={Math.min(8, config.population_size * 2)} step={2} onChange={(value) => updateConfig("games_per_individual", Math.max(4, Math.min(Math.min(8, config.population_size * 2), Math.round(value / 2) * 2)))} />
-          <NumberControl label="Search depth" value={config.search_depth} min={1} max={100} onChange={(value) => updateConfig("search_depth", value)} />
+          <NumberControl label="Clock / side (seconds)" value={config.time_control_ms / 1000} min={1} max={600} onChange={(value) => updateConfig("time_control_ms", value * 1000)} />
           <NumberControl label="Mutation rate" value={config.mutation_rate} min={0} max={1} step={0.05} onChange={(value) => updateConfig("mutation_rate", value)} />
           <NumberControl label="Mutation strength" value={config.mutation_strength} min={1} max={100} onChange={(value) => updateConfig("mutation_strength", value)} />
           <NumberControl label="Elite count" value={config.elite_count} min={0} max={Math.max(0, config.population_size - 1)} onChange={(value) => updateConfig("elite_count", value)} />
@@ -376,7 +408,27 @@ export default function GeneticLaboratoryPage() {
           {operation === "loading" && <span className="ml-1 text-xs text-[#77776d]" aria-live="polite">Loading experiment state…</span>}
           {(operation === "start" || operation === "step" || operation === "run" || operation === "reset") && <span className="ml-1 text-xs text-[#77776d]" aria-live="polite">{operation === "reset" ? "Resetting experiment…" : "Evaluating self-play games…"}</span>}
         </div>
-        <p className="mb-0 mt-3 text-[11px] leading-5 text-[#77776d]">Fitness is candidate wins minus losses across paired White/Black games. Search uses Alpha-Beta at the selected depth; games are capped by the ply limit.</p>
+        <p className="mb-0 mt-3 text-[11px] leading-5 text-[#77776d]">Each side gets the same whole-game clock. Phase 2H allocates each move’s search budget, then iterative deepening searches until that budget expires; observed depth varies by position. Fitness remains wins minus losses, and games are capped by the ply limit.</p>
+      </section>
+
+      <section aria-labelledby="game-report-heading" className="mb-7 border border-[#d5cebf] bg-[#fbf9f3] p-4">
+        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="game-report-heading" className="m-0 text-sm font-semibold">Game termination report · current evaluation</h2>
+          <span className="text-[10px] text-[#77776d]">Completed games only</span>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+          <Metric label="Total games" value={gameReport.total_games} />
+          <Metric label="Wins · candidate" value={gameReport.wins} />
+          <Metric label="Draws" value={gameReport.draws} />
+          <Metric label="Losses · candidate" value={gameReport.losses} />
+          <Metric label="Avg / max plies" value={`${gameReport.average_plies.toFixed(1)} / ${gameReport.max_plies}`} />
+        </div>
+        <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 border-t border-[#e8e3d8] pt-3 text-[11px] text-[#626258]">
+          <span className="font-semibold">Draw by termination:</span>
+          {Object.entries(gameReport.draws_by_termination_reason).length
+            ? Object.entries(gameReport.draws_by_termination_reason).map(([reason, count]) => <span key={reason}>{reason.replaceAll("_", " ")}: <strong>{count}</strong></span>)
+            : <span>None recorded yet</span>}
+        </div>
       </section>
 
       {(operation === "start" || operation === "step" || operation === "run" || liveTraces.length > 0) && <LiveSelfPlayMonitor
@@ -450,30 +502,7 @@ export default function GeneticLaboratoryPage() {
           {selectedIndividual && <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#6c6c62]"><span>Selected: <strong className="font-mono text-[#343930]">{selectedIndividual.id}</strong> · {selectedIndividual.wins} wins, {selectedIndividual.draws} draws, {selectedIndividual.losses} losses</span><span>Fitness = wins − losses</span></div>}
         </section>
 
-        <section aria-labelledby="evolution-heading" className="min-w-0">
-          <SectionHeading icon={<GitBranch size={16} />} eyebrow="GENETIC OPERATORS" title="Evolution visualizer" detail={selectedChild ? `Child ${selectedChild.individual.id} · generation ${snapshot?.generation}` : "Crossover and mutation events appear after the first generation step"} />
-          {selectedChild ? (
-            <div className="space-y-4 border-y border-[#d5cebf] bg-[#fbf9f3] p-4 sm:p-5">
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <ParentPanel label="Parent A" id={selectedChild.parent_a_id} individual={previousSnapshot?.population.find((item) => item.id === selectedChild.parent_a_id)} />
-                <ParentPanel label="Parent B" id={selectedChild.parent_b_id} individual={previousSnapshot?.population.find((item) => item.id === selectedChild.parent_b_id)} />
-              </div>
-              <div className="flex flex-wrap items-center gap-2 text-[9px] font-semibold uppercase tracking-[.15em] text-[#8c744b]"><span className="h-px min-w-4 flex-1 bg-[#d7ccb7]" /><span>Uniform crossover</span><span className="h-px min-w-4 flex-1 bg-[#d7ccb7]" /></div>
-              <GeneStrip weights={selectedChild.crossover_weights} origins={selectedChild.gene_origins} />
-              <div className="flex items-center gap-2 text-[9px] font-semibold uppercase tracking-[.15em] text-[#8c744b]"><span className="h-px flex-1 bg-[#d7ccb7]" /><span>Mutation</span><span className="h-px flex-1 bg-[#d7ccb7]" /></div>
-              {selectedChild.mutations.length ? (
-                <ul className="m-0 flex flex-wrap gap-2 p-0" aria-label="Mutation events">
-                  {selectedChild.mutations.map((mutation, index) => <li key={`${mutation.gene}-${index}`} className="list-none border border-[#d7c8ad] bg-[#f3ede0] px-3 py-2 text-xs"><strong>{geneLabels[mutation.gene]}</strong> {mutation.old_value} → {mutation.new_value} <span className="font-mono font-semibold text-[#8a5f31]">({mutation.delta > 0 ? "+" : ""}{mutation.delta})</span></li>)}
-                </ul>
-              ) : <p className="m-0 text-xs text-[#78776d]">No genes mutated in this child.</p>}
-              <div className="border-t border-[#e1dbce] pt-3"><Genome label="Final child" id={selectedChild.individual.id} weights={selectedChild.individual.weights} /></div>
-              {snapshot && snapshot.children.length > 1 && <label className="flex items-center gap-2 text-xs text-[#64645a]">Inspect child <select value={selectedChild.individual.id} onChange={(event) => setSelectedChildId(event.target.value)} className="rounded-md border border-[#d5cebf] bg-white px-2 py-1">{snapshot.children.map((child) => <option key={child.individual.id} value={child.individual.id}>{child.individual.id}</option>)}</select></label>}
-              <p className="m-0 text-[11px] leading-5 text-[#68685f]">{crossoverExplanation(selectedChild.gene_origins)} {mutationExplanation(selectedChild.mutations)}</p>
-            </div>
-          ) : (
-            <div className="grid min-h-52 place-items-center border-y border-[#d5cebf] bg-[#fbf9f3] px-6 text-center text-sm text-[#77776d]">Start the experiment, then advance a generation to inspect its actual parents, gene inheritance, and mutations.</div>
-          )}
-        </section>
+        <EvolutionLineageVisualizer snapshot={visualizerSnapshot} previousSnapshot={previousSnapshot} selectedId={selectedChildId} onSelect={setSelectedChildId} />
       </div>
 
       <div className="mt-7 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,.8fr)]">
@@ -678,7 +707,7 @@ function LiveSelfPlayMonitor({
               </div>
               <div className="border border-[#d5cebf] bg-white p-3">
                 <p className="m-0 mb-2 text-[9px] font-semibold uppercase tracking-[.14em] text-[#747267]">Candidate chromosome</p>
-                <MiniChromosome weights={displayedTrace.candidate_weights} />
+                <MiniChromosome weights={replayCandidateWeights(displayedTrace)} />
                 <p className="mb-0 mt-3 border-t border-[#e5dfd2] pt-2 text-[9px] leading-4 text-[#77776d]">
                   {displayedTrace.opponent_type} opponent weights: {geneKeys.map((gene) => `${geneLabels[gene]} ${displayedTrace.opponent_weights[gene]}`).join(" · ")}
                 </p>
@@ -686,9 +715,10 @@ function LiveSelfPlayMonitor({
               <div className="border border-[#d5cebf] bg-white p-3">
                 <p className="m-0 mb-2 text-[9px] font-semibold uppercase tracking-[.14em] text-[#747267]">Fitness matchup breakdown</p>
                 <div className="space-y-1">
-                  {candidateGames.map((trace) => <div key={trace.game_index} className="grid grid-cols-[1fr_auto_auto] gap-3 font-mono text-[9px]">
+                  {candidateGames.map((trace) => <div key={trace.game_index} className="grid grid-cols-[1fr_auto_auto_auto] gap-3 font-mono text-[9px]">
                     <span>vs {trace.opponent_id} · {trace.candidate_color}</span>
                     <span>{trace.result?.toUpperCase() ?? "LIVE"}</span>
+                    <span>{trace.termination?.replaceAll("_", " ") ?? "pending"}</span>
                     <span className="text-right">{trace.fitness_delta > 0 ? "+" : ""}{trace.fitness_delta}</span>
                   </div>)}
                 </div>
@@ -714,7 +744,7 @@ function LiveSelfPlayMonitor({
           </div>
           {displayedMove && <div className="mt-2 grid grid-cols-3 gap-2 text-[9px] text-[#77776d]">
             <span>Eval <strong className="block font-mono text-xs text-[#343930]">{displayedMove.evaluation > 0 ? "+" : ""}{displayedMove.evaluation.toFixed(2)}</strong></span>
-            <span>Depth <strong className="block font-mono text-xs text-[#343930]">{displayedMove.depth}</strong></span>
+            <span>Observed depth <strong className="block font-mono text-xs text-[#343930]">{displayedMove.depth}</strong></span>
             <span>Nodes <strong className="block font-mono text-xs text-[#343930]">{displayedMove.nodes.toLocaleString()}</strong></span>
           </div>}
           <div className="mt-2 max-h-24 overflow-y-auto border border-[#e1dccf] bg-white p-2" aria-label="Move history">
@@ -727,7 +757,7 @@ function LiveSelfPlayMonitor({
             <p className="m-0 text-[9px] font-semibold uppercase tracking-[.14em] text-[#8c744b]">Game history · this evaluation</p>
             <div className="mt-2 max-h-64 space-y-1.5 overflow-y-auto pr-1">
               {traces.length ? traces.map((trace) => <button key={`${trace.candidate_id}-${trace.game_index}`} type="button" onClick={() => onSelectReplay(trace)} className={`flex w-full items-center justify-between gap-2 border px-2.5 py-2 text-left text-[10px] ${replay?.candidate_id === trace.candidate_id && replay.game_index === trace.game_index ? "border-[#48563c] bg-[#eef0e6]" : "border-[#ded7c7] bg-white hover:bg-[#f3f0e8]"}`}>
-                <span><strong className="font-mono">{trace.candidate_id}</strong> · Game {trace.game_index}<small className="block text-[#77776d]">Candidate {trace.candidate_color} · {trace.plies} plies</small></span>
+                <span><strong className="font-mono">{trace.candidate_id}</strong> · Game {trace.game_index}<small className="block text-[#77776d]">Candidate {trace.candidate_color} · {trace.plies} plies · {trace.termination?.replaceAll("_", " ") ?? "live"}</small></span>
                 <span className="text-right font-semibold">{trace.result?.toUpperCase() ?? "LIVE"}<small className="block font-mono">{trace.fitness_delta > 0 ? "+" : ""}{trace.fitness_delta}</small></span>
               </button>) : <p className="m-0 text-[10px] text-[#89877d]">Completed games appear here and can be replayed.</p>}
             </div>
@@ -768,6 +798,66 @@ function ChessReplayBoard({ fen, lastUci }: { fen: string; lastUci: string | nul
       {row === 7 && <span className="absolute bottom-0 right-1 z-[2] text-[8px] font-semibold opacity-70">{"abcdefgh"[col]}</span>}
     </div>)}
   </div>;
+}
+
+export function EvolutionLineageVisualizer({
+  snapshot,
+  previousSnapshot,
+  selectedId,
+  onSelect,
+}: {
+  snapshot: EvolutionLineageSnapshot | null;
+  previousSnapshot: EvolutionStep | undefined;
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+}) {
+  const lineages = snapshot ? lineageEntriesForStep(snapshot) : [];
+  const lineage = lineages.find((entry) => entry.id === selectedId)
+    ?? lineages.find((entry) => entry.kind === "offspring")
+    ?? lineages[0]
+    ?? null;
+  const parentPopulation = previousSnapshot?.population ?? [];
+  const detail = lineage
+    ? `${lineage.kind === "elite_clone" ? "Elite clone" : "Offspring"} ${lineage.id} · generation ${lineage.generation}`
+    : "Advance a generation to inspect offspring and elite lineage";
+
+  return (
+    <section aria-labelledby="evolution-heading" className="min-w-0">
+      <SectionHeading icon={<GitBranch size={16} />} eyebrow="GENETIC OPERATORS" title="Evolution visualizer" detail={detail} />
+      {lineage ? (
+        <div className="space-y-4 border-y border-[#d5cebf] bg-[#fbf9f3] p-4 sm:p-5">
+          {lineage.kind === "offspring" ? (
+            <>
+              <p className="m-0 text-xs font-semibold">{lineage.id} · offspring</p>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <ParentPanel label="Parent A" id={lineage.parent_a_id} individual={individualById(parentPopulation, lineage.parent_a_id) ?? undefined} />
+                <ParentPanel label="Parent B" id={lineage.parent_b_id} individual={individualById(parentPopulation, lineage.parent_b_id) ?? undefined} />
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-[9px] font-semibold uppercase tracking-[.15em] text-[#8c744b]"><span className="h-px min-w-4 flex-1 bg-[#d7ccb7]" /><span>Crossover · pre-mutation</span><span className="h-px flex-1 bg-[#d7ccb7]" /></div>
+              <GeneStrip weights={lineage.pre_mutation_weights} origins={lineage.gene_origins} />
+              <div className="flex items-center gap-2 text-[9px] font-semibold uppercase tracking-[.15em] text-[#8c744b]"><span className="h-px flex-1 bg-[#d7ccb7]" /><span>Mutation</span><span className="h-px flex-1 bg-[#d7ccb7]" /></div>
+              {lineage.mutations.length ? (
+                <ul className="m-0 flex flex-wrap gap-2 p-0" aria-label="Mutation events">
+                  {lineage.mutations.map((mutation, index) => <li key={`${mutation.gene}-${index}`} className="list-none border border-[#d7c8ad] bg-[#f3ede0] px-3 py-2 text-xs"><strong>{geneLabels[mutation.gene]}</strong> {mutation.old_value} → {mutation.new_value} <span className="font-mono font-semibold text-[#8a5f31]">({mutation.delta > 0 ? "+" : ""}{mutation.delta})</span></li>)}
+                </ul>
+              ) : <p className="m-0 text-xs text-[#78776d]">No genes mutated in this offspring.</p>}
+              <p className="m-0 text-[11px] leading-5 text-[#68685f]">{crossoverExplanation(lineage.gene_origins)} {mutationExplanation(lineage.mutations)}</p>
+            </>
+          ) : (
+            <>
+              <p className="m-0 text-xs font-semibold">{lineage.id} · elite clone</p>
+              <ParentPanel label="Copied from" id={lineage.parent_a_id} individual={individualById(parentPopulation, lineage.parent_a_id) ?? undefined} />
+              <p className="m-0 text-[11px] leading-5 text-[#68685f]">This elite carries the parent chromosome forward unchanged; crossover and mutation were not applied.</p>
+            </>
+          )}
+          <div className="border-t border-[#e1dbce] pt-3"><Genome label={lineage.kind === "elite_clone" ? "Final elite chromosome" : "Final chromosome after mutation"} id={lineage.id} weights={lineage.post_mutation_weights} /></div>
+          {lineages.length > 1 && <label className="flex items-center gap-2 text-xs text-[#64645a]">Inspect individual <select aria-label="Inspect individual lineage" value={lineage.id} onChange={(event) => onSelect(event.target.value)} className="rounded-md border border-[#d5cebf] bg-white px-2 py-1">{lineages.map((entry) => <option key={entry.id} value={entry.id}>{entry.id} · {entry.kind === "elite_clone" ? "elite clone" : "offspring"}</option>)}</select></label>}
+        </div>
+      ) : (
+        <div className="grid min-h-52 place-items-center border-y border-[#d5cebf] bg-[#fbf9f3] px-6 text-center text-sm text-[#77776d]">{snapshot ? "This generation has no offspring or elite lineage to display." : "Start the experiment, then advance a generation to inspect its actual parents, gene inheritance, and mutations."}</div>
+      )}
+    </section>
+  );
 }
 
 const pieceNames: Record<string, string> = { p: "pawn", n: "knight", b: "bishop", r: "rook", q: "queen", k: "king" };

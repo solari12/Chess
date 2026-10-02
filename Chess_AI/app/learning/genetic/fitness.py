@@ -1,18 +1,21 @@
-"""Candidate self-play fitness using the existing Alpha-Beta search."""
+"""Candidate self-play fitness using Phase 2H budgets and iterative search."""
 
 from dataclasses import dataclass
+from time import perf_counter
 from typing import Callable, Literal, Sequence
 
 import chess
 
-from app.engine.alpha_beta import alpha_beta
 from app.engine.evaluation import evaluate
+from app.engine.iterative_search import MAX_ITERATIVE_DEPTH, IterativeSearchResult, iterative_search
 from app.learning.genetic.models import (
     BASELINE_WEIGHTS,
     CandidateGameTrace,
     GameMoveTrace,
     PieceWeights,
 )
+from app.learning.time_management.runtime_policy import decide_search_budget
+from app.learning.time_management.runtime_shadow import load_shadow_model
 
 EventCallback = Callable[[dict[str, object]], None]
 OpponentType = Literal["baseline", "population", "elite"]
@@ -86,7 +89,7 @@ def piece_value_map(weights: PieceWeights) -> dict[int, int]:
 def _play_game(
     candidate_weights: PieceWeights,
     candidate_color: chess.Color,
-    search_depth: int,
+    time_control_ms: int,
     max_plies: int,
     opponent: FitnessOpponent,
     *,
@@ -98,6 +101,8 @@ def _play_game(
 ) -> GameResult:
     board = chess.Board()
     plies = 0
+    remaining_time = {chess.WHITE: time_control_ms, chess.BLACK: time_control_ms}
+    timeout_color: chess.Color | None = None
     candidate_color_name = "white" if candidate_color else "black"
     trace = CandidateGameTrace(
         generation=generation,
@@ -128,15 +133,52 @@ def _play_game(
         baseline_weights=BASELINE_WEIGHTS.as_dict(),
     )
 
+    # Keep the original automatic game-over behavior. Claimable draws are
+    # recorded as their cause when the game reaches an automatic terminal state.
     while plies < max_plies and not board.is_game_over(claim_draw=False):
         mover = board.turn
         side_weights = candidate_weights if mover == candidate_color else opponent.weights
-        result = alpha_beta(
+
+        def weighted_iterative_search(
+            position: chess.Board,
+            budget_ms: float,
+            *,
+            max_depth: int,
+        ) -> IterativeSearchResult:
+            return iterative_search(
+                position,
+                budget_ms,
+                max_depth=max_depth,
+                evaluator=lambda candidate_position: evaluate_with_weights(candidate_position, side_weights),
+                repetition_penalty=12,
+            )
+
+        clock_before_search = remaining_time[mover]
+        move_started = perf_counter()
+        decision = decide_search_budget(
             board,
-            search_depth,
-            evaluator=lambda position: evaluate_with_weights(position, side_weights),
-            repetition_penalty=12,
+            remaining_time_ms=clock_before_search,
+            max_depth=MAX_ITERATIVE_DEPTH,
+            search_fn=weighted_iterative_search,
         )
+        if decision.final_search_budget_ms > 0:
+            result = weighted_iterative_search(
+                board,
+                decision.final_search_budget_ms,
+                max_depth=MAX_ITERATIVE_DEPTH,
+            )
+        else:
+            legal_move = next(iter(board.legal_moves), None)
+            result = IterativeSearchResult(legal_move, 0, 0, 0, 0.0, False, ())
+
+        elapsed_ms = max(
+            (perf_counter() - move_started) * 1_000,
+            decision.policy_latency_ms + result.time_ms,
+        )
+        remaining_time[mover] = max(0, int(clock_before_search - elapsed_ms))
+        if elapsed_ms >= clock_before_search:
+            timeout_color = mover
+            break
         if result.move is None:
             break
 
@@ -153,7 +195,11 @@ def _play_game(
             fen=board.fen(),
             evaluation=round(result.score / 100, 2),
             nodes=result.nodes,
-            depth=search_depth,
+            depth=result.completed_depth,
+            search_budget_ms=decision.final_search_budget_ms,
+            search_time_ms=result.time_ms,
+            policy_time_ms=decision.policy_latency_ms,
+            remaining_time_ms=remaining_time[mover],
         )
         trace.moves.append(move)
         _emit(
@@ -175,11 +221,23 @@ def _play_game(
             evaluation=move.evaluation,
             nodes=move.nodes,
             depth=move.depth,
+            search_budget_ms=move.search_budget_ms,
+            search_time_ms=move.search_time_ms,
+            policy_time_ms=move.policy_time_ms,
+            remaining_time_ms=move.remaining_time_ms,
         )
 
-    if plies >= max_plies and not board.is_game_over(claim_draw=False):
+    if timeout_color is not None:
+        opponent_can_mate = not board.has_insufficient_material(not timeout_color)
+        if opponent_can_mate:
+            candidate_won = candidate_color != timeout_color
+            game_result = "win" if candidate_won else "loss"
+        else:
+            game_result = "draw"
+        termination = "timeout"
+    elif plies >= max_plies and not board.is_game_over(claim_draw=False):
         game_result: Literal["win", "draw", "loss"] = "draw"
-        termination = "ply_limit"
+        termination = "max_plies"
     else:
         outcome = board.result(claim_draw=False)
         if outcome in {"1/2-1/2", "*"}:
@@ -188,12 +246,13 @@ def _play_game(
             candidate_won = (outcome == "1-0") == candidate_color
             game_result = "win" if candidate_won else "loss"
         game_outcome = board.outcome(claim_draw=False)
-        termination = game_outcome.termination.name.lower() if game_outcome else "unknown"
+        termination = _termination_category(game_outcome)
 
     fitness_delta = {"win": 1, "draw": 0, "loss": -1}[game_result]
     trace.result = game_result
     trace.plies = plies
     trace.fitness_delta = fitness_delta
+    trace.termination = termination
     _emit(
         on_event,
         type="game_finished",
@@ -212,10 +271,30 @@ def _play_game(
     return GameResult(game_result, candidate_color_name, opponent.id, opponent.type, plies, termination, trace)
 
 
+def _termination_category(outcome: chess.Outcome | None) -> str:
+    """Name the actual python-chess ending without changing game stopping rules."""
+    if outcome is None:
+        return "other"
+    termination = outcome.termination
+    if termination == chess.Termination.CHECKMATE:
+        return "checkmate"
+    if termination == chess.Termination.STALEMATE:
+        return "stalemate"
+    if termination == chess.Termination.THREEFOLD_REPETITION:
+        return "threefold_repetition"
+    if termination == chess.Termination.FIVEFOLD_REPETITION:
+        return "fivefold_repetition"
+    if termination == chess.Termination.FIFTY_MOVES:
+        return "fifty_move_rule"
+    if termination == chess.Termination.SEVENTYFIVE_MOVES:
+        return "seventyfive_move_rule"
+    return "other"
+
+
 def evaluate_fitness(
     candidate_weights: PieceWeights,
     games_per_individual: int = 2,
-    search_depth: int = 2,
+    time_control_ms: int = 5_000,
     max_plies: int = 200,
     baseline_weights: PieceWeights = BASELINE_WEIGHTS,
     *,
@@ -226,8 +305,8 @@ def evaluate_fitness(
 ) -> FitnessResult:
     if games_per_individual < 2 or games_per_individual % 2:
         raise ValueError("games_per_individual must be an even number of at least 2")
-    if search_depth < 1 or max_plies < 1:
-        raise ValueError("search_depth and max_plies must be positive")
+    if not 1_000 <= time_control_ms <= 600_000 or max_plies < 1:
+        raise ValueError("time_control_ms must be between 1000 and 600000; max_plies must be positive")
 
     opponent_pool = list(opponents) if opponents is not None else [
         FitnessOpponent("BASELINE", "baseline", baseline_weights)
@@ -236,6 +315,14 @@ def evaluate_fitness(
         raise ValueError("opponent pool cannot be empty")
     if len(opponent_pool) * 2 != games_per_individual:
         raise ValueError("games_per_individual must equal two games per opponent")
+
+    # Keep the one-time cold model load outside any candidate's chess clock so
+    # candidate order cannot decide who pays the startup cost.
+    try:
+        load_shadow_model()
+    except Exception:
+        # Runtime policy owns the established, clock-capped failure fallback.
+        pass
 
     games: list[GameResult] = []
     wins = draws = losses = 0
@@ -246,7 +333,7 @@ def evaluate_fitness(
             game = _play_game(
                 candidate_weights,
                 candidate_color,
-                search_depth,
+                time_control_ms,
                 max_plies,
                 opponent,
                 generation=generation,

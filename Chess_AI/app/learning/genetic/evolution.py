@@ -1,6 +1,7 @@
 """One-generation-at-a-time genetic evolution coordinator."""
 
 import random
+from dataclasses import asdict
 from typing import Callable
 
 from app.learning.genetic.crossover import uniform_crossover
@@ -41,8 +42,8 @@ class GeneticEvolution:
             raise ValueError("games_per_individual must be even and at least 4")
         if config.population_size < config.games_per_individual // 2:
             raise ValueError("population_size must provide enough unique opponents for games_per_individual")
-        if config.search_depth < 1:
-            raise ValueError("search_depth must be at least 1")
+        if not 1_000 <= config.time_control_ms <= 600_000:
+            raise ValueError("time_control_ms must be between 1000 and 600000")
         if not 0 <= config.mutation_rate <= 1:
             raise ValueError("mutation_rate must be between 0 and 1")
         if config.mutation_strength < 1:
@@ -93,7 +94,7 @@ class GeneticEvolution:
         result = evaluate_fitness(
             individual.weights,
             games_per_individual=self.config.games_per_individual,
-            search_depth=self.config.search_depth,
+            time_control_ms=self.config.time_control_ms,
             max_plies=self.config.max_plies,
             generation=individual.generation,
             candidate_id=individual.id,
@@ -258,8 +259,15 @@ class GeneticEvolution:
             parent_a = tournament_select(
                 self.state.population, self.config.tournament_size, self.rng
             )
+            parent_b_candidates = [
+                individual
+                for individual in self.state.population
+                if individual.id != parent_a.id
+            ]
             parent_b = tournament_select(
-                self.state.population, self.config.tournament_size, self.rng
+                parent_b_candidates,
+                min(self.config.tournament_size, len(parent_b_candidates)),
+                self.rng,
             )
             selected_parents.extend((parent_a.id, parent_b.id))
             parent_pairs.append(ParentPair(parent_a.id, parent_b.id))
@@ -280,14 +288,29 @@ class GeneticEvolution:
             next_population.append(child)
             children.append(
                 ChildEvent(
+                    child_id=child.id,
+                    generation=next_generation,
                     individual=child,
                     parent_a_id=parent_a.id,
                     parent_b_id=parent_b.id,
                     crossover_weights=crossover.weights,
+                    pre_mutation_weights=crossover.weights,
+                    post_mutation_weights=child_weights,
                     gene_origins=crossover.gene_origins,
                     mutations=mutations,
                 )
             )
+
+        _emit(
+            on_event,
+            type="generation_lineage",
+            lineage={
+                "generation": next_generation,
+                "population": [asdict(individual) for individual in next_population],
+                "children": [asdict(child) for child in children],
+                "elite_individuals": [asdict(elite) for elite in elites],
+            },
+        )
 
         self.state.game_traces.clear()
         self.state.status = "running"
