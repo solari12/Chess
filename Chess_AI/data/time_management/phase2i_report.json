@@ -1,0 +1,37 @@
+{
+  "phase": "2I",
+  "generated_at_utc": "2026-10-02T02:32:29.811881Z",
+  "test_cases": 10,
+  "distinct_fens": 10,
+  "baseline": {
+    "average_search_time_ms": 234.7775399684906,
+    "average_completed_depth": 2.1,
+    "average_nodes": 885.3
+  },
+  "model": {
+    "average_predicted_time_ms": 203.23604666058972,
+    "average_final_search_budget_ms": 203.23604666058972,
+    "average_search_time_ms": 192.0822500018403,
+    "average_total_time_ms": 268.81349000614136,
+    "average_completed_depth": 1.8,
+    "average_nodes": 607.1,
+    "average_model_load_time_ms": 0.0,
+    "average_feature_extraction_time_ms": 0.6165299564599991,
+    "average_inference_latency_ms": 43.55695992708206,
+    "fallback_cases": 0
+  },
+  "paired_differences": {
+    "model_minus_baseline_search_time_ms": -42.69528996665031,
+    "model_minus_baseline_completed_depth": -0.3,
+    "model_minus_baseline_nodes": -278.2,
+    "model_minus_baseline_evaluation_white_cp": 10.0,
+    "different_move_cases": 2,
+    "interpretation": "Descriptive paired metrics only; material evaluation is not a playing-strength metric."
+  },
+  "safety": {
+    "baseline_budget_violations": 0,
+    "model_budget_violations": 0,
+    "negative_model_budgets": 0
+  },
+  "playing_strength_improvement_established": false
+}

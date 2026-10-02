@@ -145,7 +145,25 @@ Phase 2F chỉ infer sau khi search kết thúc; prediction không đổi budget
 
 README gốc có đầy đủ lệnh 2F.1/2F.2 và danh sách artifacts: [Phase 2F.1](../../README.md#phase-2f1--shadow-data-collection), [Phase 2F.2](../../README.md#phase-2f2--held-out-teacher-vs-model-validation).
 
-Kết quả Phase 2F.2 hiện tại: 100 held-out records/20 FEN, overlap 0, leakage audit pass. Oracle RF đạt MAE 88.08 ms, RMSE 125.63 ms, R² 0.512; training-median baseline trên cùng records đạt MAE 144.12 ms, RMSE 207.64 ms. Tuy nhiên probe 25 ms có MAE 189.44 ms trên 15 nhãn khớp, kém matched median baseline 125.40 ms. Tại clock 300 ms reserve để lại 0 usable time nên probe bị bỏ qua. Khuyến nghị hiện tại: **NOT YET cho Phase 2G**; model không điều khiển runtime budget.
+Kết quả Phase 2F.2: 100 held-out records/20 FEN, overlap 0, leakage audit pass. Oracle RF đạt MAE 88.08 ms, RMSE 125.63 ms, R² 0.512; training-median baseline trên cùng records đạt MAE 144.12 ms, RMSE 207.64 ms. Tuy nhiên probe 25 ms có MAE 189.44 ms trên 15 nhãn khớp, kém matched median baseline 125.40 ms. Tại clock 300 ms reserve để lại 0 usable time nên probe bị bỏ qua. Phase 2F.2 tự nó chưa chứng minh model ưu việt; kết quả controlled Phase 2G được báo ở mục tiếp theo.
+
+### Phase 2G: controlled runtime experiment
+
+Phase 2G chạy baseline 250 ms và model branch (probe 25 ms, frozen Random Forest, safety reserve 300 ms) trên cùng FEN/clock từ `phase2f2_heldout_dataset.jsonl`. Đây là CLI offline; không đổi API hay production search policy. Model budget bị chặn theo clock **sau khi trừ probe time, feature preparation/model inference time và reserve**. Search depth vẫn do iterative deepening quyết định.
+
+```powershell
+python -m app.learning.time_management.phase2g run `
+  --heldout data/time_management/phase2f2_heldout_dataset.jsonl `
+  --output data/time_management/phase2g_runtime_results.jsonl
+
+python -m app.learning.time_management.phase2g report `
+  --results data/time_management/phase2g_runtime_results.jsonl `
+  --output data/time_management/phase2g_report.json
+
+python -m unittest tests.test_time_management_phase2g -v
+```
+
+Report chỉ đưa ra metrics, chênh lệch paired và kiểm tra safety; không tuyên bố branch nào thắng. `GO` chỉ xác nhận thử nghiệm controlled chạy đủ và an toàn, không xác nhận model tốt hơn hay sẵn sàng production.
 
 ## Genetic Algorithm Laboratory
 
@@ -195,6 +213,36 @@ python -m unittest discover -s tests -v
 2. Không tách các clock variants của cùng FEN qua hai split.
 3. Luôn dùng feature extractor/schema từ model metadata.
 4. Không xem runtime `actual_time_ms` là Teacher target.
-5. Shadow/probe hiện tại không cho phép model điều khiển production search.
+5. Phase 2F shadow chỉ ghi log; Phase 2H là đường production riêng, mặc định tắt và chỉ bật tường minh.
 6. Dùng seed đã ghi trong metadata để tái lập split/vị trí; thời gian thực tế phụ thuộc phần cứng.
 7. Trước khi chạy lệnh tạo artifact, chọn output path riêng để giữ lại kết quả cần so sánh.
+
+## Phase 2H: opt-in production integration
+
+`POST /api/ai/move` giữ nguyên response schema. `AIRequest` chấp nhận thêm `remaining_time_ms` tùy chọn; client cũ không cần gửi field này. Policy chỉ áp dụng với `alpha-beta` khi có clock. Minimax và request không có clock tiếp tục dùng fixed-depth path. Chess page hiện gọi `/api/ai/move/timed` cho Alpha-Beta; timed endpoint cũng áp dụng cùng policy khi flag bật và request có `remaining_time_ms`, còn response schema giữ nguyên.
+
+Backend mặc định giữ behavior cũ. Bật thử nghiệm bằng environment variable:
+
+```powershell
+$env:TIME_MANAGEMENT_ENABLED = "true"
+```
+
+Với clock, runtime chạy probe tối đa 25 ms vì canonical Phase 2C schema có các feature search telemetry cần probe. Model và feature extractor không bị thay đổi. Probe time, feature/model inference time và safety reserve 300 ms đều được trừ trước khi cấp budget chính. Nếu model/policy lỗi, fallback là `min(250 ms, clock còn lại sau policy overhead - 300 ms)`. Khi clock không vượt reserve, không chạy search; API trả một nước hợp lệ ngay để giữ response contract.
+
+`depth` tiếp tục là giới hạn độ sâu cho `iterative_search`; model chỉ dự đoán time budget. Runtime telemetry được ghi qua structured application logs, không thêm trường vào response.
+
+## Phase 2H latency telemetry and cache
+
+Production time-management logs separate `probe_time_ms`, `model_load_time_ms`, `feature_extraction_time_ms`, and `inference_latency_ms`. `inference_latency_ms` measures only the frozen estimator's `predict()` call; feature building, cache lookup/model deserialization, and prediction validation are outside that field. `policy_latency_ms` captures the overall pre-search policy cost and is the quantity used when reserving clock before the main search. The Phase 2C estimator is cached by artifact path for the process lifetime; the first cache miss reports model load time, while later requests report `0` for model loading. No model, feature schema, prediction, or fallback behavior is changed by this instrumentation.
+
+### Phase 2I: paired offline search comparison
+
+After validating the live API path, Phase 2I compares the existing 250 ms baseline with the frozen Phase 2C policy on the same held-out FEN and remaining clock. It does not retrain, modify gameplay, or establish playing strength. The default run selects ten deterministic, evenly spaced held-out records; `--limit 0` uses every held-out row.
+
+```powershell
+python -m app.learning.time_management.phase2i run --limit 10
+python -m app.learning.time_management.phase2i report
+python -m unittest tests.test_time_management_phase2i -v
+```
+
+Raw paired metrics are written to `data/time_management/phase2i_paired_results.jsonl`; the aggregate is written to `data/time_management/phase2i_report.json`. The report records search and policy time, predicted/final budget, depth, nodes, material evaluation after each move, paired differences, fallback count, and safety violations. Material evaluation is descriptive only; do not interpret it as a strength result.

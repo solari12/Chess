@@ -10,6 +10,13 @@ class AIRequest(BaseModel):
     # Accept alpha_beta as a compatibility alias for the existing frontend.
     algorithm: Literal["minimax", "alpha-beta", "alpha_beta"]
     depth: int = Field(strict=True, ge=1, le=10, description="Search depth (1–100)")
+    remaining_time_ms: int | None = Field(
+        default=None,
+        strict=True,
+        ge=0,
+        le=259_200_000,
+        description="Optional current player's clock; used only when Time Management is enabled.",
+    )
 
 
 class AIResponse(BaseModel):

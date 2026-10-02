@@ -30,6 +30,7 @@ DEFAULT_LOG_PATH = TIME_MANAGEMENT_ROOT / "runtime_shadow.jsonl"
 MODEL_NAME = "random_forest"
 SAFETY_MARGIN_MS = 300.0
 _log_lock = Lock()
+_model_load_lock = Lock()
 
 
 class ShadowModelError(RuntimeError):
@@ -69,9 +70,27 @@ def load_shadow_model(
     metadata_path: str | Path | None = None,
 ) -> tuple[Any, str]:
     """Load and validate the existing Phase 2C model, cached by artifact path."""
+    model, version, _ = load_shadow_model_with_timing(model_path, metadata_path)
+    return model, version
+
+
+def load_shadow_model_with_timing(
+    model_path: str | Path | None = None,
+    metadata_path: str | Path | None = None,
+) -> tuple[Any, str, float]:
+    """Return the cached model and time spent loading it on a cache miss."""
     artifact = Path(model_path) if model_path is not None else DEFAULT_MODEL_PATH
     metadata = Path(metadata_path) if metadata_path is not None else artifact.parent / "metadata.json"
-    return _load_cached_model(str(artifact.resolve()), str(metadata.resolve()))
+    with _model_load_lock:
+        cache_misses_before = _load_cached_model.cache_info().misses
+        started_at = perf_counter()
+        model, version = _load_cached_model(str(artifact.resolve()), str(metadata.resolve()))
+        elapsed_ms = max((perf_counter() - started_at) * 1_000, 0.0)
+        cache_misses_after = _load_cached_model.cache_info().misses
+    # A cache hit still has a small Python lookup cost; report zero model-load
+    # time so this field means deserialization/metadata loading only.
+    model_load_time_ms = elapsed_ms if cache_misses_after > cache_misses_before else 0.0
+    return model, version, model_load_time_ms
 
 
 def build_runtime_record(
