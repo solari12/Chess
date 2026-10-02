@@ -181,7 +181,11 @@ API ở `app/api/genetic_lab.py`, prefix `/api/lab/genetic`:
 | `POST /reset` | Xóa experiment trong process hiện tại |
 | `POST /play-move` | Tìm nước với chromosome gửi lên; depth API 1–4 |
 
-Defaults: population 10, 8 games/candidate, 5 seconds of whole-game clock per side, mutation rate 0.15, mutation strength 25, 2 elites, tournament size 3, maximum 200 plies, and 20 generations. State lives in one backend process and is lost when the backend restarts. GA does not persist a trained model.
+Defaults: population 10, 8 games/candidate, 5 seconds of whole-game clock per side, mutation rate 0.15, mutation strength 25, 2 elites, tournament size 3, maximum 200 plies, and 20 generations. The active experiment is held in one backend process; explicit JSON checkpoints and Individual Bank records survive backend restarts. GA does not persist a trained model.
+
+Save Experiment writes a schema-versioned checkpoint under `data/genetic_lab/experiments/<experiment_id>/checkpoint.json`. It stores completed population/history, both Python RNG states, the next individual ID, lineage, and game summaries; move-by-move game traces are omitted. Loading restores the same experiment ID and resumes at the next generation without re-evaluating completed generations. Saving during evaluation checkpoints the last completed generation.
+
+The Individual Bank is stored separately at `data/genetic_lab/individual_bank/individuals.json`; tied-best candidate sets are saved under `data/genetic_lab/candidate_sets/`. Bank records include source experiment/generation, chromosome, fitness and W/D/L, lineage, timestamp, tags, and notes. Starting from selected bank records creates a new experiment, copies their stable IDs and chromosomes as generation-one seeds, evaluates them in the new experiment, and fills any remaining population slots with the new experiment's random seed. The saved bank records remain unchanged.
 
 
 ### GA search and time control

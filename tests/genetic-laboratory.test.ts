@@ -5,11 +5,18 @@ import GeneticLaboratoryPage from "@/app/laboratory/genetic/page";
 import { EvolutionLineageVisualizer } from "@/app/laboratory/genetic/page";
 import {
   candidateTraceById,
+  getCandidateSets,
   getGeneticState,
+  getIndividualBank,
+  getSavedExperiments,
   individualById,
+  loadGeneticExperiment,
   lineageEntriesForStep,
   replayCandidateWeights,
   resetGeneticExperiment,
+  saveGeneticExperiment,
+  saveIndividualsToBank,
+  saveTiedBestCandidateSet,
   startGeneticExperiment,
   stepGeneticExperiment,
   streamGeneticExperiment,
@@ -107,6 +114,11 @@ describe("genetic laboratory page and client", () => {
     expect(markup).toContain("BASELINE is one reference opponent");
     expect(markup).toContain("not a universal measure of chess strength");
     expect(markup).toContain("Start Experiment");
+    expect(markup).toContain("Save Experiment");
+    expect(markup).toContain("Load Experiment");
+    expect(markup).toContain("Continue Experiment");
+    expect(markup).toContain("Individual Bank");
+    expect(markup).toContain("Create Experiment from Selected Individuals");
     expect(markup).not.toContain("Evaluating self-play games");
   });
 
@@ -173,6 +185,31 @@ describe("genetic laboratory page and client", () => {
 
     await expect(streamGeneticExperiment("start", null, () => undefined))
       .rejects.toThrow("did not provide a live event stream");
+  });
+
+  it("calls checkpoint, load, bank, and tied-best candidate-set endpoints", async () => {
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ saved: true }), { status: 200 })));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await getSavedExperiments();
+    await saveGeneticExperiment();
+    await loadGeneticExperiment("exp_test_001");
+    await getIndividualBank();
+    await saveIndividualsToBank(["I0035", "I0038"]);
+    await getCandidateSets();
+    await saveTiedBestCandidateSet("all tied best");
+
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      "http://127.0.0.1:8000/api/lab/genetic/experiments",
+      "http://127.0.0.1:8000/api/lab/genetic/experiments/save",
+      "http://127.0.0.1:8000/api/lab/genetic/experiments/load",
+      "http://127.0.0.1:8000/api/lab/genetic/bank",
+      "http://127.0.0.1:8000/api/lab/genetic/bank/save",
+      "http://127.0.0.1:8000/api/lab/genetic/candidate-sets",
+      "http://127.0.0.1:8000/api/lab/genetic/candidate-sets/save-best",
+    ]);
+    expect(fetchMock.mock.calls[2]?.[1]).toMatchObject({ body: JSON.stringify({ experiment_id: "exp_test_001" }) });
+    expect(fetchMock.mock.calls[4]?.[1]).toMatchObject({ body: JSON.stringify({ individual_ids: ["I0035", "I0038"] }) });
   });
 
   it("maps offspring and replay chromosomes by stable individual ID, independent of sorting", () => {
@@ -271,5 +308,27 @@ describe("genetic laboratory page and client", () => {
     expect(eliteMarkup).toContain("I0001");
     expect(eliteMarkup).toContain("Final elite chromosome");
     expect(eliteMarkup).toContain("carries the parent chromosome forward unchanged");
+  });
+
+  it("shows a bank-seeded individual and its source lineage", () => {
+    const bankSeed = individual("I0035", parentAWeights, 1);
+    bankSeed.bank_source_experiment_id = "exp_source_001";
+    bankSeed.bank_source_generation = 5;
+    bankSeed.bank_source_individual_id = "I0035";
+    bankSeed.bank_source_lineage = { kind: "offspring", parent_a_id: "I0010", parent_b_id: "I0011" };
+    const seedStep: EvolutionStep = { ...previousStep, population: [bankSeed], best_individual: bankSeed };
+    const lineage = lineageEntriesForStep(seedStep).find((entry) => entry.id === "I0035");
+    expect(lineage).toMatchObject({ kind: "bank_seed", source_experiment_id: "exp_source_001", source_generation: 5 });
+    const markup = renderToString(createElement(EvolutionLineageVisualizer, {
+      snapshot: seedStep,
+      previousSnapshot: undefined,
+      selectedId: "I0035",
+      onSelect: () => undefined,
+    }));
+    expect(markup).toContain("Individual Bank seed");
+    expect(markup).toContain("exp_source_001");
+    expect(markup).toContain("generation ");
+    expect(markup).toContain("<!-- -->5");
+    expect(markup).toContain("View source lineage");
   });
 });

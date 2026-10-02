@@ -16,6 +16,10 @@ export interface Individual {
   losses: number;
   games_played: number;
   elite_from: string | null;
+  bank_source_experiment_id?: string | null;
+  bank_source_generation?: number | null;
+  bank_source_individual_id?: string | null;
+  bank_source_lineage?: Record<string, unknown> | null;
 }
 
 export interface GameMoveTrace {
@@ -110,6 +114,16 @@ export type EvolutionLineageEntry =
       individual: Individual;
       parent_a_id: string;
       post_mutation_weights: PieceWeights;
+    }
+  | {
+      kind: "bank_seed";
+      id: string;
+      generation: number;
+      individual: Individual;
+      source_experiment_id: string;
+      source_generation: number;
+      source_individual_id: string;
+      post_mutation_weights: PieceWeights;
     };
 
 export interface ParentPair {
@@ -147,6 +161,9 @@ export interface GeneticConfig {
 }
 
 export interface GeneticState {
+  experiment_id?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
   status: "ready" | "running" | "complete";
   generation: number;
   generation_limit: number;
@@ -156,6 +173,42 @@ export interface GeneticState {
   active_lineage?: EvolutionLineageSnapshot | null;
   game_traces: CandidateGameTrace[];
   game_report: GameReport;
+}
+
+export interface SavedExperimentSummary {
+  experiment_id: string;
+  created_at: string;
+  updated_at: string;
+  current_generation: number;
+  generation_limit: number;
+  population_size: number;
+  best_fitness: number | null;
+}
+
+export interface BankIndividual {
+  bank_id: string;
+  individual_id: string;
+  source_experiment_id: string;
+  source_generation: number;
+  chromosome: PieceWeights;
+  fitness: number | null;
+  wins: number;
+  draws: number;
+  losses: number;
+  games_played: number;
+  lineage: Record<string, unknown> | null;
+  created_at: string;
+  tags: string[];
+  notes: string;
+}
+
+export interface SavedCandidateSet {
+  candidate_set_id: string;
+  name: string;
+  source_experiment_id: string;
+  source_generation: number;
+  bank_ids: string[];
+  created_at: string;
 }
 
 export function individualById(population: Individual[], individualId: string | null): Individual | null {
@@ -194,6 +247,18 @@ export function lineageEntriesForStep(step: EvolutionLineageSnapshot): Evolution
         individual: elite,
         parent_a_id: elite.elite_from,
         post_mutation_weights: elite.weights,
+      }];
+    }
+    if (individual.bank_source_experiment_id && individual.bank_source_generation !== null && individual.bank_source_generation !== undefined) {
+      return [{
+        kind: "bank_seed",
+        id: individual.id,
+        generation: individual.generation,
+        individual,
+        source_experiment_id: individual.bank_source_experiment_id,
+        source_generation: individual.bank_source_generation,
+        source_individual_id: individual.bank_source_individual_id ?? individual.id,
+        post_mutation_weights: individual.weights,
       }];
     }
     return [];
@@ -241,6 +306,22 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const getGeneticState = () => request<GeneticState>("/state");
+export const getSavedExperiments = () => request<SavedExperimentSummary[]>("/experiments");
+export const saveGeneticExperiment = () => request<SavedExperimentSummary>("/experiments/save", { method: "POST" });
+export const loadGeneticExperiment = (experimentId: string) => request<GeneticState>("/experiments/load", {
+  method: "POST",
+  body: JSON.stringify({ experiment_id: experimentId }),
+});
+export const getIndividualBank = () => request<BankIndividual[]>("/bank");
+export const saveIndividualsToBank = (individualIds: string[]) => request<BankIndividual[]>("/bank/save", {
+  method: "POST",
+  body: JSON.stringify({ individual_ids: individualIds }),
+});
+export const getCandidateSets = () => request<SavedCandidateSet[]>("/candidate-sets");
+export const saveTiedBestCandidateSet = (name: string) => request<{
+  candidate_set: SavedCandidateSet;
+  individuals: BankIndividual[];
+}>("/candidate-sets/save-best", { method: "POST", body: JSON.stringify({ name }) });
 
 export const startGeneticExperiment = (config: GeneticConfig) =>
   request<GeneticState>("/start", { method: "POST", body: JSON.stringify(config) });
@@ -252,16 +333,22 @@ export const resetGeneticExperiment = () =>
   request<GeneticState>("/reset", { method: "POST" });
 
 export async function streamGeneticExperiment(
-  action: "start" | "step",
+  action: "start" | "step" | "start-from-bank",
   config: GeneticConfig | null,
   onEvent: (event: GeneticEvent) => void,
   signal?: AbortSignal,
+  bankIds: string[] = [],
 ): Promise<void> {
-  const path = action === "start" ? "/start/stream" : "/step/stream";
+  const path = action === "start"
+    ? "/start/stream"
+    : action === "start-from-bank" ? "/start-from-bank/stream" : "/step/stream";
+  const body = action === "start-from-bank"
+    ? JSON.stringify({ config, bank_ids: bankIds })
+    : config ? JSON.stringify(config) : undefined;
   const response = await fetch(`${endpoint}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
-    body: config ? JSON.stringify(config) : undefined,
+    body,
     signal,
   });
   if (!response.ok) {

@@ -16,6 +16,19 @@ from app.engine.alpha_beta import alpha_beta
 from app.learning.genetic.fitness import evaluate_with_weights
 from app.learning.genetic.evolution import GeneticEvolution
 from app.learning.genetic.models import ExperimentConfig, PieceWeights
+from app.learning.genetic.models import Individual
+from app.learning.genetic.persistence import (
+    bank_individuals,
+    checkpoint_for_experiment,
+    individuals_from_bank,
+    list_candidate_sets,
+    list_experiments,
+    load_checkpoint,
+    restore_experiment,
+    save_bank_individuals,
+    save_candidate_set,
+    save_checkpoint,
+)
 from app.learning.genetic.reporting import summarize_game_traces
 
 router = APIRouter(prefix="/api/lab/genetic", tags=["genetic-laboratory"])
@@ -24,6 +37,7 @@ _experiment_lock = Lock()
 _stream_active = False
 _active_stream_snapshot: dict[str, Any] | None = None
 _active_lineage_payload: dict[str, Any] | None = None
+_active_experiment_checkpoint: dict[str, Any] | None = None
 _cancel_requested = Event()
 _stream_finished = Event()
 _stream_finished.set()
@@ -61,6 +75,25 @@ class StartExperimentRequest(BaseModel):
 
     def to_config(self) -> ExperimentConfig:
         return ExperimentConfig(**self.model_dump())
+
+
+class ExperimentReference(BaseModel):
+    experiment_id: str
+
+
+class BankSaveRequest(BaseModel):
+    individual_ids: list[str] = Field(min_length=1)
+    tags: list[str] = Field(default_factory=list)
+    notes: str = Field(default="", max_length=2_000)
+
+
+class CandidateSetSaveRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+
+
+class StartFromBankRequest(BaseModel):
+    config: StartExperimentRequest
+    bank_ids: list[str] = Field(min_length=1)
 
 
 class GeneticWeightsRequest(BaseModel):
@@ -112,12 +145,16 @@ def play_genetic_move(request: GeneticMoveRequest) -> dict[str, object]:
 def _state_payload(*, allow_active_state: bool = False) -> dict[str, Any]:
     if _experiment is None:
         return {
+            "experiment_id": None,
+            "created_at": None,
+            "updated_at": None,
             "status": "ready",
             "generation": 0,
             "generation_limit": 0,
             "config": None,
             "population": [],
             "history": [],
+            "active_lineage": None,
             "game_traces": [],
             "game_report": summarize_game_traces([]),
         }
@@ -130,6 +167,10 @@ def _state_payload(*, allow_active_state: bool = False) -> dict[str, Any]:
         )
         return payload
     payload = asdict(_experiment.state)
+    payload["experiment_id"] = _experiment.experiment_id
+    payload["created_at"] = _experiment.created_at
+    payload["updated_at"] = _experiment.updated_at
+    payload["active_lineage"] = None
     payload["generation_limit"] = _experiment.config.generations
     payload["game_report"] = summarize_game_traces(_experiment.state.game_traces)
     return payload
@@ -163,6 +204,143 @@ def start_experiment_stream(request: StartExperimentRequest) -> StreamingRespons
         return _stream_response(experiment, "start", reserved=True)
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@router.get("/experiments")
+def saved_experiments() -> list[dict[str, Any]]:
+    try:
+        return list_experiments()
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@router.post("/experiments/save")
+def save_current_experiment() -> dict[str, Any]:
+    with _experiment_lock:
+        if _experiment is None:
+            raise HTTPException(status_code=409, detail="There is no experiment to save")
+        checkpoint = _active_experiment_checkpoint if _stream_active else checkpoint_for_experiment(_experiment)
+        if checkpoint is None:
+            raise HTTPException(status_code=409, detail="The last completed generation is not available to save")
+    try:
+        return save_checkpoint(checkpoint)
+    except (ValueError, OSError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@router.post("/experiments/load")
+def load_saved_experiment(request: ExperimentReference) -> dict[str, Any]:
+    global _experiment
+    with _experiment_lock:
+        if _stream_active:
+            raise HTTPException(status_code=409, detail="Wait for the active generation before loading an experiment")
+        try:
+            checkpoint = load_checkpoint(request.experiment_id)
+            restored = restore_experiment(checkpoint)
+        except FileNotFoundError as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except (ValueError, KeyError, TypeError, OSError) as error:
+            raise HTTPException(status_code=422, detail=str(error)) from error
+        if _experiment is not None and _experiment.state.generation > 0 and _experiment.experiment_id != restored.experiment_id:
+            try:
+                save_checkpoint(checkpoint_for_experiment(_experiment))
+            except (ValueError, OSError) as error:
+                raise HTTPException(status_code=500, detail=f"Could not preserve the current experiment: {error}") from error
+        _experiment = restored
+        return _state_payload()
+
+
+@router.get("/bank")
+def get_individual_bank() -> list[dict[str, Any]]:
+    try:
+        return bank_individuals()
+    except (ValueError, OSError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@router.get("/candidate-sets")
+def get_candidate_sets() -> list[dict[str, Any]]:
+    try:
+        return list_candidate_sets()
+    except (ValueError, OSError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@router.post("/candidate-sets/save-best")
+def save_tied_best_candidate_set(request: CandidateSetSaveRequest) -> dict[str, Any]:
+    with _experiment_lock:
+        if _experiment is None or _experiment.state.generation == 0:
+            raise HTTPException(status_code=409, detail="Complete the first generation before saving candidates")
+        evaluated = [item for item in _experiment.state.population if item.fitness is not None]
+        if not evaluated:
+            raise HTTPException(status_code=409, detail="The current population has no evaluated candidates")
+        best_fitness = max(item.fitness for item in evaluated if item.fitness is not None)
+        best = [item for item in evaluated if item.fitness == best_fitness]
+        source_experiment_id = _experiment.experiment_id
+        source_generation = _experiment.state.generation
+        records = [_bank_record(_experiment, item, [], "") for item in best]
+    try:
+        saved = save_bank_individuals(records)
+        candidate_set = save_candidate_set(
+            name=request.name,
+            source_experiment_id=source_experiment_id,
+            source_generation=source_generation,
+            bank_ids=[item["bank_id"] for item in saved],
+        )
+        return {"candidate_set": candidate_set, "individuals": saved}
+    except FileNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (ValueError, OSError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@router.post("/bank/save")
+def save_individuals_to_bank(request: BankSaveRequest) -> list[dict[str, Any]]:
+    with _experiment_lock:
+        if _experiment is None or _experiment.state.generation == 0:
+            raise HTTPException(status_code=409, detail="Complete the first generation before saving individuals")
+        population_by_id = {individual.id: individual for individual in _experiment.state.population}
+        if len(request.individual_ids) != len(set(request.individual_ids)):
+            raise HTTPException(status_code=422, detail="Selected individual IDs contain duplicates")
+        selected = [population_by_id.get(individual_id) for individual_id in request.individual_ids]
+        if any(individual is None for individual in selected):
+            raise HTTPException(status_code=404, detail="One or more selected individuals are not in the current population")
+        records = [
+            _bank_record(_experiment, individual, request.tags, request.notes)
+            for individual in selected
+            if individual is not None
+        ]
+    try:
+        return save_bank_individuals(records)
+    except (ValueError, OSError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@router.post("/start-from-bank/stream")
+def start_from_bank_stream(request: StartFromBankRequest) -> StreamingResponse:
+    global _experiment
+    try:
+        candidates = individuals_from_bank(request.bank_ids)
+        config = request.config.to_config()
+        if len(candidates) > config.population_size:
+            raise HTTPException(status_code=422, detail="Selected bank individuals exceed the new population size")
+        experiment = GeneticEvolution(config, initial_candidates=candidates)
+        with _experiment_lock:
+            if _stream_active:
+                raise HTTPException(status_code=409, detail="An evaluation stream is already active")
+            if _experiment is not None and _experiment.state.generation > 0:
+                # Preserve the outgoing in-memory experiment before switching
+                # the active slot to a new experiment seeded from the bank.
+                save_checkpoint(checkpoint_for_experiment(_experiment))
+            _experiment = experiment
+            _claim_stream()
+        return _stream_response(experiment, "start", reserved=True)
+    except FileNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except OSError as error:
+        raise HTTPException(status_code=500, detail=f"Could not preserve the current experiment: {error}") from error
 
 
 @router.post("/step")
@@ -245,7 +423,7 @@ def _stream_response(
                 continue
 
     def run_evaluation() -> None:
-        global _stream_active, _active_stream_snapshot, _active_lineage_payload
+        global _stream_active, _active_stream_snapshot, _active_lineage_payload, _active_experiment_checkpoint
         try:
             with _experiment_lock:
                 if _experiment is not experiment:
@@ -270,6 +448,7 @@ def _stream_response(
                 _stream_active = False
                 _active_stream_snapshot = None
                 _active_lineage_payload = None
+                _active_experiment_checkpoint = None
                 _stream_finished.set()
             while not disconnected.is_set():
                 try:
@@ -306,11 +485,52 @@ def _stream_response(
 
 
 def _claim_stream() -> None:
-    global _stream_active, _active_stream_snapshot, _active_lineage_payload
+    global _stream_active, _active_stream_snapshot, _active_lineage_payload, _active_experiment_checkpoint
     if _stream_active:
         raise HTTPException(status_code=409, detail="An evaluation stream is already active")
     _active_stream_snapshot = _state_payload()
     _active_lineage_payload = None
+    _active_experiment_checkpoint = checkpoint_for_experiment(_experiment) if _experiment is not None else None
     _cancel_requested.clear()
     _stream_finished.clear()
     _stream_active = True
+
+
+def _bank_record(
+    experiment: GeneticEvolution,
+    individual: Individual,
+    tags: list[str],
+    notes: str,
+) -> dict[str, Any]:
+    lineage: dict[str, Any] | None = None
+    for step in reversed(experiment.state.history):
+        child = next((event for event in step.children if event.child_id == individual.id), None)
+        if child is not None:
+            lineage = {"kind": "offspring", **asdict(child)}
+            break
+        elite = next((item for item in step.elite_individuals if item.id == individual.id), None)
+        if elite is not None:
+            lineage = {"kind": "elite_clone", "individual": asdict(elite), "parent_id": elite.elite_from}
+            break
+    if lineage is None and individual.bank_source_experiment_id:
+        lineage = {
+            "kind": "bank_seed",
+            "source_experiment_id": individual.bank_source_experiment_id,
+            "source_generation": individual.bank_source_generation,
+            "source_individual_id": individual.bank_source_individual_id or individual.id,
+            "source_lineage": individual.bank_source_lineage,
+        }
+    return {
+        "individual_id": individual.id,
+        "source_experiment_id": experiment.experiment_id,
+        "source_generation": individual.generation,
+        "chromosome": individual.weights.as_dict(),
+        "fitness": individual.fitness,
+        "wins": individual.wins,
+        "draws": individual.draws,
+        "losses": individual.losses,
+        "games_played": individual.games_played,
+        "lineage": lineage,
+        "tags": list(tags),
+        "notes": notes,
+    }

@@ -1,7 +1,7 @@
 """Data models for genetic material-weight experiments."""
 
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Any, Literal
 
 
 GENES = ("pawn", "knight", "bishop", "rook", "queen")
@@ -40,6 +40,10 @@ class Individual:
     losses: int = 0
     games_played: int = 0
     elite_from: str | None = None
+    bank_source_experiment_id: str | None = None
+    bank_source_generation: int | None = None
+    bank_source_individual_id: str | None = None
+    bank_source_lineage: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)

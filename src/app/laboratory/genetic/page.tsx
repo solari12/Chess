@@ -19,6 +19,13 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   getGeneticState,
+  getCandidateSets,
+  getIndividualBank,
+  getSavedExperiments,
+  loadGeneticExperiment,
+  saveGeneticExperiment,
+  saveIndividualsToBank,
+  saveTiedBestCandidateSet,
   candidateTraceById,
   individualById,
   lineageEntriesForStep,
@@ -26,6 +33,9 @@ import {
   resetGeneticExperiment,
   streamGeneticExperiment,
   type CandidateGameTrace,
+  type BankIndividual,
+  type SavedCandidateSet,
+  type SavedExperimentSummary,
   type EvolutionLineageSnapshot,
   type EvolutionStep,
   type GeneticEvent,
@@ -74,6 +84,14 @@ export default function GeneticLaboratoryPage() {
   const [selectedIndividualId, setSelectedIndividualId] = useState<string | null>(null);
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
   const [pendingLineage, setPendingLineage] = useState<EvolutionLineageSnapshot | null>(null);
+  const [savedExperiments, setSavedExperiments] = useState<SavedExperimentSummary[]>([]);
+  const [selectedExperimentId, setSelectedExperimentId] = useState("");
+  const [individualBank, setIndividualBank] = useState<BankIndividual[]>([]);
+  const [candidateSets, setCandidateSets] = useState<SavedCandidateSet[]>([]);
+  const [selectedCandidateSetId, setSelectedCandidateSetId] = useState("");
+  const [selectedBankIds, setSelectedBankIds] = useState<string[]>([]);
+  const [selectedPopulationIds, setSelectedPopulationIds] = useState<string[]>([]);
+  const [archiveBusy, setArchiveBusy] = useState(false);
   const [paused, setPaused] = useState(false);
   const [liveEvents, setLiveEvents] = useState<GeneticEvent[]>([]);
   const [liveTraces, setLiveTraces] = useState<CandidateGameTrace[]>([]);
@@ -155,6 +173,9 @@ export default function GeneticLaboratoryPage() {
       .finally(() => {
         if (mounted) setOperation(null);
       });
+    void getSavedExperiments().then(setSavedExperiments).catch(() => setSavedExperiments([]));
+    void getIndividualBank().then(setIndividualBank).catch(() => setIndividualBank([]));
+    void getCandidateSets().then(setCandidateSets).catch(() => setCandidateSets([]));
     return () => {
       mounted = false;
       runEnabled.current = false;
@@ -257,8 +278,118 @@ export default function GeneticLaboratoryPage() {
     setSelectedChildId(null);
   };
 
-  const runTen = async () => {
-    if (requestActive.current || !state?.generation || state.status === "complete") return;
+  const refreshArchives = async () => {
+    const [experiments, bank, sets] = await Promise.all([
+      getSavedExperiments(),
+      getIndividualBank(),
+      getCandidateSets(),
+    ]);
+    setSavedExperiments(experiments);
+    setIndividualBank(bank);
+    setCandidateSets(sets);
+  };
+
+  const saveExperiment = async () => {
+    setArchiveBusy(true);
+    setError(null);
+    try {
+      const saved = await saveGeneticExperiment();
+      await refreshArchives();
+      setSelectedExperimentId(saved.experiment_id);
+    } catch (reason) {
+      setError(messageFrom(reason));
+    } finally {
+      setArchiveBusy(false);
+    }
+  };
+
+  const loadExperiment = async () => {
+    if (!selectedExperimentId) return;
+    setOperation("loading");
+    setError(null);
+    try {
+      const restored = await loadGeneticExperiment(selectedExperimentId);
+      setState(restored);
+      latestState.current = restored;
+      setConfig(restored.config ?? initialConfig);
+      setLiveTraces(restored.game_traces ?? []);
+      setPendingLineage(restored.active_lineage ?? null);
+      setSelectedGeneration(null);
+      setSelectedIndividualId(null);
+      setSelectedChildId(null);
+    } catch (reason) {
+      setError(messageFrom(reason));
+    } finally {
+      setOperation(null);
+    }
+  };
+
+  const saveSelectedIndividuals = async () => {
+    if (!selectedPopulationIds.length) return;
+    setArchiveBusy(true);
+    setError(null);
+    try {
+      await saveIndividualsToBank(selectedPopulationIds);
+      setSelectedPopulationIds([]);
+      setIndividualBank(await getIndividualBank());
+    } catch (reason) {
+      setError(messageFrom(reason));
+    } finally {
+      setArchiveBusy(false);
+    }
+  };
+
+  const saveTiedBest = async () => {
+    if (!state?.experiment_id || !state.population.length) return;
+    setArchiveBusy(true);
+    setError(null);
+    try {
+      const result = await saveTiedBestCandidateSet(`${state.experiment_id} · Gen ${state.generation} tied best`);
+      setIndividualBank(await getIndividualBank());
+      setCandidateSets(await getCandidateSets());
+      setSelectedCandidateSetId(result.candidate_set.candidate_set_id);
+      setSelectedBankIds(result.candidate_set.bank_ids);
+    } catch (reason) {
+      setError(messageFrom(reason));
+    } finally {
+      setArchiveBusy(false);
+    }
+  };
+
+  const selectCandidateSet = (candidateSetId: string) => {
+    setSelectedCandidateSetId(candidateSetId);
+    const candidateSet = candidateSets.find((item) => item.candidate_set_id === candidateSetId);
+    setSelectedBankIds(candidateSet?.bank_ids ?? []);
+  };
+
+  const startFromSelectedBank = async () => {
+    if (!selectedBankIds.length) return;
+    if (selectedBankIds.length > config.population_size) {
+      setError("Selected bank individuals cannot exceed Population Size.");
+      return;
+    }
+    if (requestActive.current) return;
+    requestActive.current = true;
+    setOperation("start");
+    setError(null);
+    setPaused(false);
+    try {
+      await streamGeneticExperiment("start-from-bank", config, handleEvent, undefined, selectedBankIds);
+      await refreshArchives();
+      setSelectedGeneration(null);
+      setSelectedIndividualId(null);
+      setSelectedChildId(null);
+      setSelectedPopulationIds([]);
+    } catch (reason) {
+      setError(messageFrom(reason));
+    } finally {
+      requestActive.current = false;
+      setOperation(null);
+    }
+  };
+
+  const runGenerations = async (stepLimit: number, allowStart = false) => {
+    if (requestActive.current || !state || (!allowStart && !state.generation) || state.status === "complete") return;
     requestActive.current = true;
     runEnabled.current = true;
     pausedByUser.current = false;
@@ -266,8 +397,9 @@ export default function GeneticLaboratoryPage() {
     setError(null);
     setOperation("run");
     try {
-      for (let index = 0; index < 10 && runEnabled.current; index += 1) {
-        await streamGeneticExperiment("step", null, handleEvent);
+      for (let index = 0; index < stepLimit && runEnabled.current; index += 1) {
+        const isInitialGeneration = (latestState.current?.generation ?? state.generation) === 0;
+        await streamGeneticExperiment(isInitialGeneration ? "start" : "step", isInitialGeneration ? config : null, handleEvent);
         setSelectedGeneration(null);
         if (latestState.current?.status === "complete") break;
       }
@@ -282,6 +414,9 @@ export default function GeneticLaboratoryPage() {
       }
     }
   };
+
+  const runTen = () => runGenerations(10);
+  const continueExperiment = () => runGenerations(Math.max(1, config.generations - (state?.generation ?? 0)), true);
 
   const pause = () => {
     runEnabled.current = false;
@@ -320,6 +455,10 @@ export default function GeneticLaboratoryPage() {
   const sortedPopulation = snapshot
     ? [...snapshot.population].sort((left, right) => (right.fitness ?? -Infinity) - (left.fitness ?? -Infinity))
     : [];
+  const bestFitnessInSnapshot = sortedPopulation.reduce<number | null>((best, individual) => (
+    individual.fitness === null ? best : best === null ? individual.fitness : Math.max(best, individual.fitness)
+  ), null);
+  const tiedBestCount = sortedPopulation.filter((individual) => individual.fitness === bestFitnessInSnapshot).length;
   const displayedTrace = replay
     ? candidateTraceById(liveTraces, replay.candidate_id, replay.game_index)
     : liveTraces.at(-1) ?? null;
@@ -411,6 +550,34 @@ export default function GeneticLaboratoryPage() {
         <p className="mb-0 mt-3 text-[11px] leading-5 text-[#77776d]">Each side gets the same whole-game clock. Phase 2H allocates each move’s search budget, then iterative deepening searches until that budget expires; observed depth varies by position. Fitness remains wins minus losses, and games are capped by the ply limit.</p>
       </section>
 
+      <section aria-labelledby="archive-heading" className="mb-7 border border-[#d5cebf] bg-[#fbf9f3] p-4">
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="m-0 text-[9px] font-semibold uppercase tracking-[.15em] text-[#8c744b]">CHECKPOINTS</p>
+            <h2 id="archive-heading" className="m-0 mt-1 text-sm font-semibold">Save, load, and continue</h2>
+            <p className="mb-0 mt-1 text-[11px] text-[#77776d]">
+              Experiment {state?.experiment_id ?? "not started"} · Generation {state?.generation ?? 0} / {state?.generation_limit ?? config.generations} · Last saved {savedExperiments.find((item) => item.experiment_id === state?.experiment_id)?.updated_at ?? "not saved"}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="secondary" onClick={saveExperiment} disabled={archiveBusy || !state?.experiment_id} className="text-xs">Save Experiment</Button>
+            <Button variant="secondary" onClick={continueExperiment} disabled={busy || !state || state.status === "running" || state.status === "complete" || state.generation >= state.generation_limit} className="text-xs">Continue Experiment</Button>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 border-t border-[#e2dccf] pt-3">
+          <select aria-label="Saved experiment" value={selectedExperimentId} onChange={(event) => setSelectedExperimentId(event.target.value)} className="min-w-64 rounded-md border border-[#d5cebf] bg-white px-3 py-2 text-xs">
+            <option value="">Select saved experiment</option>
+            {savedExperiments.map((item) => <option key={item.experiment_id} value={item.experiment_id}>{item.experiment_id} · Gen {item.current_generation}/{item.generation_limit} · best {item.best_fitness === null ? "—" : signed(item.best_fitness)}</option>)}
+          </select>
+          <Button variant="outline" onClick={loadExperiment} disabled={archiveBusy || busy || !selectedExperimentId} className="text-xs">Load Experiment</Button>
+          <Button variant="outline" onClick={saveTiedBest} disabled={archiveBusy || !state?.generation || !state.population.length} className="text-xs">Save Tied-Best Candidates</Button>
+          <select aria-label="Saved candidate set" value={selectedCandidateSetId} onChange={(event) => selectCandidateSet(event.target.value)} className="min-w-64 rounded-md border border-[#d5cebf] bg-white px-3 py-2 text-xs">
+            <option value="">Load Candidate Set</option>
+            {candidateSets.map((item) => <option key={item.candidate_set_id} value={item.candidate_set_id}>{item.name} · {item.bank_ids.length} individuals</option>)}
+          </select>
+        </div>
+      </section>
+
       <section aria-labelledby="game-report-heading" className="mb-7 border border-[#d5cebf] bg-[#fbf9f3] p-4">
         <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
           <h2 id="game-report-heading" className="m-0 text-sm font-semibold">Game termination report · current evaluation</h2>
@@ -471,30 +638,34 @@ export default function GeneticLaboratoryPage() {
 
       <div className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
         <section aria-labelledby="population-heading" className="min-w-0">
-          <SectionHeading icon={<Activity size={16} />} eyebrow="CURRENT SNAPSHOT" title="Population" detail={snapshot ? `Generation ${snapshot.generation} · sorted by fitness` : "Individuals will appear after the experiment starts"} />
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <SectionHeading icon={<Activity size={16} />} eyebrow="CURRENT SNAPSHOT" title="Population" detail={snapshot ? `Generation ${snapshot.generation} · sorted by fitness` : "Individuals will appear after the experiment starts"} />
+            <Button variant="outline" size="sm" onClick={saveSelectedIndividuals} disabled={archiveBusy || !selectedPopulationIds.length} className="text-[10px]">Save selected to Individual Bank</Button>
+          </div>
           <div className="overflow-x-auto border-y border-[#d5cebf] bg-[#fbf9f3]">
             <table className="w-full min-w-[690px] border-collapse text-left text-xs">
               <thead className="bg-[#e8e4d9] text-[9px] uppercase tracking-[.12em] text-[#67675e]">
                 <tr>
-                  <th className="px-3 py-3">Individual</th>
+                  <th className="w-8 px-2 py-3"><span className="sr-only">Select</span></th><th className="px-3 py-3">Individual</th>
                   {geneKeys.map((gene) => <th key={gene} className="px-2 py-2" scope="col"><PieceMark gene={gene} /></th>)}
                   <th className="px-2 py-3">Fitness</th><th className="px-3 py-3">Record / status</th>
                 </tr>
               </thead>
               <tbody>
                 {sortedPopulation.map((individual) => {
-                  const isBest = individual.id === snapshot?.best_individual.id;
+                    const isBest = individual.fitness !== null && individual.fitness === bestFitnessInSnapshot;
                   const isElite = Boolean(individual.elite_from);
                   return (
                     <tr key={individual.id} className={`border-t border-[#e8e3d8] ${selectedIndividual?.id === individual.id ? "bg-[#eef0e6]" : "hover:bg-white"}`}>
+                      <td className="px-2 py-2.5"><input aria-label={`Select ${individual.id} for Individual Bank`} type="checkbox" checked={selectedPopulationIds.includes(individual.id)} onChange={(event) => setSelectedPopulationIds((current) => event.target.checked ? [...current, individual.id] : current.filter((id) => id !== individual.id))} /></td>
                       <td className="px-3 py-2.5"><button type="button" onClick={() => setSelectedIndividualId(individual.id)} className="font-mono font-semibold text-[#343930] underline-offset-2 hover:underline">{individual.id}</button></td>
                       {geneKeys.map((gene) => <td key={gene} className="px-2 py-2.5 font-mono tabular-nums text-[#54564e]">{individual.weights[gene]}</td>)}
                       <td className="px-2 py-2.5 font-mono font-semibold tabular-nums">{signed(individual.fitness ?? 0)}</td>
-                      <td className="px-3 py-2.5 text-[10px] text-[#747369]">{isBest ? <span className="mr-2 font-semibold text-[#627449]">BEST</span> : null}{isElite ? <span className="mr-2 font-semibold text-[#9a7040]">ELITE</span> : null}{individual.wins}W · {individual.draws}D · {individual.losses}L</td>
+                      <td className="px-3 py-2.5 text-[10px] text-[#747369]">{isBest ? <span className="mr-2 font-semibold text-[#627449]">{tiedBestCount > 1 ? "TIED BEST" : "BEST"}</span> : null}{isElite ? <span className="mr-2 font-semibold text-[#9a7040]">ELITE</span> : null}{individual.wins}W · {individual.draws}D · {individual.losses}L</td>
                     </tr>
                   );
                 })}
-                {!sortedPopulation.length && <tr><td colSpan={8} className="px-4 py-12 text-center text-sm text-[#858378]">Start an experiment to create and evaluate the first generation.</td></tr>}
+                {!sortedPopulation.length && <tr><td colSpan={9} className="px-4 py-12 text-center text-sm text-[#858378]">Start an experiment to create and evaluate the first generation.</td></tr>}
               </tbody>
             </table>
           </div>
@@ -504,6 +675,40 @@ export default function GeneticLaboratoryPage() {
 
         <EvolutionLineageVisualizer snapshot={visualizerSnapshot} previousSnapshot={previousSnapshot} selectedId={selectedChildId} onSelect={setSelectedChildId} />
       </div>
+
+      <section aria-labelledby="individual-bank-heading" className="mt-7 border border-[#d5cebf] bg-[#fbf9f3] p-4">
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="m-0 text-[9px] font-semibold uppercase tracking-[.15em] text-[#8c744b]">LONG-TERM GENOME STORAGE</p>
+            <h2 id="individual-bank-heading" className="m-0 mt-1 text-sm font-semibold">Individual Bank</h2>
+            <p className="mb-0 mt-1 text-[11px] text-[#77776d]">Saved chromosomes remain unchanged. Select saved genomes below to seed a new experiment.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => void refreshArchives().catch((reason: unknown) => setError(messageFrom(reason)))} className="text-xs">Refresh Bank</Button>
+            <Button onClick={startFromSelectedBank} disabled={busy || !selectedBankIds.length || selectedBankIds.length > config.population_size} className="text-xs">Create Experiment from Selected Individuals</Button>
+          </div>
+        </div>
+        <div className="max-h-[28rem] overflow-auto border-y border-[#d5cebf]">
+          <table className="w-full min-w-[900px] border-collapse text-left text-[11px]">
+            <thead className="sticky top-0 bg-[#e8e4d9] text-[9px] uppercase tracking-[.12em] text-[#67675e]">
+              <tr><th className="w-8 px-2 py-2"><span className="sr-only">Select</span></th><th className="px-2 py-2">Individual</th><th className="px-2 py-2">Source experiment / gen</th><th className="px-2 py-2">P / N / B / R / Q</th><th className="px-2 py-2">Fitness</th><th className="px-2 py-2">W / D / L · games</th><th className="px-2 py-2">Saved</th></tr>
+            </thead>
+            <tbody>
+              {individualBank.map((item) => <tr key={item.bank_id} className="border-t border-[#e5dfd2]">
+                <td className="px-2 py-2"><input aria-label={`Select bank individual ${item.individual_id} from ${item.source_experiment_id}`} type="checkbox" checked={selectedBankIds.includes(item.bank_id)} onChange={(event) => setSelectedBankIds((current) => event.target.checked ? [...current, item.bank_id] : current.filter((id) => id !== item.bank_id))} /></td>
+                <td className="px-2 py-2 font-mono font-semibold">{item.individual_id}<small className="block font-sans font-normal text-[#858378]">{item.tags.join(", ") || item.notes}</small></td>
+                <td className="px-2 py-2 font-mono">{item.source_experiment_id}<small className="block font-sans text-[#858378]">Generation {item.source_generation}</small></td>
+                <td className="px-2 py-2 font-mono tabular-nums">{[item.chromosome.pawn, item.chromosome.knight, item.chromosome.bishop, item.chromosome.rook, item.chromosome.queen].join(" / ")}</td>
+                <td className="px-2 py-2 font-mono">{item.fitness === null ? "—" : signed(item.fitness)}</td>
+                <td className="px-2 py-2 font-mono">{item.wins} / {item.draws} / {item.losses} · {item.games_played}</td>
+                <td className="px-2 py-2 text-[#77776d]">{new Date(item.created_at).toLocaleString()}</td>
+              </tr>)}
+              {!individualBank.length && <tr><td colSpan={7} className="px-3 py-8 text-center text-sm text-[#858378]">No saved individuals yet. Select population rows and save them, or save every tied-best individual.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+        {selectedBankIds.length > config.population_size && <p role="alert" className="mb-0 mt-2 text-xs text-[#9b5144]">Selected bank individuals exceed the configured population size.</p>}
+      </section>
 
       <div className="mt-7 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,.8fr)]">
         <section aria-labelledby="fitness-heading" className="min-w-0">
@@ -818,7 +1023,7 @@ export function EvolutionLineageVisualizer({
     ?? null;
   const parentPopulation = previousSnapshot?.population ?? [];
   const detail = lineage
-    ? `${lineage.kind === "elite_clone" ? "Elite clone" : "Offspring"} ${lineage.id} · generation ${lineage.generation}`
+    ? `${lineage.kind === "elite_clone" ? "Elite clone" : lineage.kind === "bank_seed" ? "Bank seed" : "Offspring"} ${lineage.id} · generation ${lineage.generation}`
     : "Advance a generation to inspect offspring and elite lineage";
 
   return (
@@ -843,15 +1048,23 @@ export function EvolutionLineageVisualizer({
               ) : <p className="m-0 text-xs text-[#78776d]">No genes mutated in this offspring.</p>}
               <p className="m-0 text-[11px] leading-5 text-[#68685f]">{crossoverExplanation(lineage.gene_origins)} {mutationExplanation(lineage.mutations)}</p>
             </>
-          ) : (
+          ) : lineage.kind === "elite_clone" ? (
             <>
               <p className="m-0 text-xs font-semibold">{lineage.id} · elite clone</p>
               <ParentPanel label="Copied from" id={lineage.parent_a_id} individual={individualById(parentPopulation, lineage.parent_a_id) ?? undefined} />
               <p className="m-0 text-[11px] leading-5 text-[#68685f]">This elite carries the parent chromosome forward unchanged; crossover and mutation were not applied.</p>
             </>
+          ) : (
+            <>
+              <p className="m-0 text-xs font-semibold">{lineage.id} · Individual Bank seed</p>
+              <p className="m-0 text-[11px] leading-5 text-[#68685f]">
+                Preserved from {lineage.source_individual_id} in experiment {lineage.source_experiment_id}, generation {lineage.source_generation}. The saved chromosome is copied unchanged and evaluated in this experiment.
+              </p>
+              {lineage.individual.bank_source_lineage && <details className="text-[10px] text-[#68685f]"><summary className="cursor-pointer">View source lineage</summary><pre className="max-h-40 overflow-auto whitespace-pre-wrap">{JSON.stringify(lineage.individual.bank_source_lineage, null, 2)}</pre></details>}
+            </>
           )}
-          <div className="border-t border-[#e1dbce] pt-3"><Genome label={lineage.kind === "elite_clone" ? "Final elite chromosome" : "Final chromosome after mutation"} id={lineage.id} weights={lineage.post_mutation_weights} /></div>
-          {lineages.length > 1 && <label className="flex items-center gap-2 text-xs text-[#64645a]">Inspect individual <select aria-label="Inspect individual lineage" value={lineage.id} onChange={(event) => onSelect(event.target.value)} className="rounded-md border border-[#d5cebf] bg-white px-2 py-1">{lineages.map((entry) => <option key={entry.id} value={entry.id}>{entry.id} · {entry.kind === "elite_clone" ? "elite clone" : "offspring"}</option>)}</select></label>}
+          <div className="border-t border-[#e1dbce] pt-3"><Genome label={lineage.kind === "offspring" ? "Final chromosome after mutation" : lineage.kind === "elite_clone" ? "Final elite chromosome" : "Initial bank seed chromosome"} id={lineage.id} weights={lineage.post_mutation_weights} /></div>
+          {lineages.length > 1 && <label className="flex items-center gap-2 text-xs text-[#64645a]">Inspect individual <select aria-label="Inspect individual lineage" value={lineage.id} onChange={(event) => onSelect(event.target.value)} className="rounded-md border border-[#d5cebf] bg-white px-2 py-1">{lineages.map((entry) => <option key={entry.id} value={entry.id}>{entry.id} · {entry.kind === "elite_clone" ? "elite clone" : entry.kind === "bank_seed" ? "bank seed" : "offspring"}</option>)}</select></label>}
         </div>
       ) : (
         <div className="grid min-h-52 place-items-center border-y border-[#d5cebf] bg-[#fbf9f3] px-6 text-center text-sm text-[#77776d]">{snapshot ? "This generation has no offspring or elite lineage to display." : "Start the experiment, then advance a generation to inspect its actual parents, gene inheritance, and mutations."}</div>

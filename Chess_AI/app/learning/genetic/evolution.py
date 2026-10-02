@@ -1,7 +1,9 @@
 """One-generation-at-a-time genetic evolution coordinator."""
 
 import random
+import re
 from dataclasses import asdict
+from datetime import datetime, timezone
 from typing import Callable
 
 from app.learning.genetic.crossover import uniform_crossover
@@ -16,7 +18,7 @@ from app.learning.genetic.models import (
     BASELINE_WEIGHTS,
 )
 from app.learning.genetic.mutation import mutate
-from app.learning.genetic.population import create_initial_population
+from app.learning.genetic.population import create_initial_population, random_weights
 from app.learning.genetic.selection import tournament_select
 
 EventCallback = Callable[[dict[str, object]], None]
@@ -25,13 +27,28 @@ EventCallback = Callable[[dict[str, object]], None]
 class GeneticEvolution:
     """Stateful experiment that exposes its complete generation history."""
 
-    def __init__(self, config: ExperimentConfig):
+    def __init__(
+        self,
+        config: ExperimentConfig,
+        *,
+        experiment_id: str | None = None,
+        created_at: str | None = None,
+        initial_candidates: list[Individual] | None = None,
+    ):
         self._validate_config(config)
         self.config = config
         self.rng = random.Random(config.seed)
         opponent_seed = None if config.seed is None else config.seed + 1_000_003
         self.opponent_rng = random.Random(opponent_seed)
-        self.next_individual_id = 1
+        self.experiment_id = experiment_id or _new_experiment_id()
+        self.created_at = created_at or _utc_now()
+        self.updated_at = self.created_at
+        self.initial_candidates = list(initial_candidates or [])
+        self.next_individual_id = _next_id_after_candidates(self.initial_candidates)
+        if len({individual.id for individual in self.initial_candidates}) != len(self.initial_candidates):
+            raise ValueError("Initial candidate IDs must be unique within an experiment")
+        if len(self.initial_candidates) > config.population_size:
+            raise ValueError("The selected seed count cannot exceed population_size")
         self.state = EvolutionState(status="ready", config=config)
 
     @staticmethod
@@ -179,13 +196,35 @@ class GeneticEvolution:
         if self.state.generation != 0:
             raise ValueError("experiment has already started")
 
-        population = create_initial_population(
-            self.config.population_size,
-            self.rng,
-            generation=1,
-            first_id=self.next_individual_id,
-        )
-        self.next_individual_id += len(population)
+        if self.initial_candidates:
+            population = [
+                Individual(
+                    id=source.id,
+                    weights=source.weights,
+                    fitness=None,
+                    generation=1,
+                    bank_source_experiment_id=source.bank_source_experiment_id,
+                    bank_source_generation=source.bank_source_generation,
+                    bank_source_individual_id=source.bank_source_individual_id,
+                    bank_source_lineage=source.bank_source_lineage,
+                )
+                for source in self.initial_candidates
+            ]
+            while len(population) < self.config.population_size:
+                population.append(Individual(
+                    id=self._new_id(),
+                    weights=random_weights(self.rng),
+                    fitness=None,
+                    generation=1,
+                ))
+        else:
+            population = create_initial_population(
+                self.config.population_size,
+                self.rng,
+                generation=1,
+                first_id=self.next_individual_id,
+            )
+            self.next_individual_id += len(population)
         self.state.status = "running"
         self.state.game_traces.clear()
         _emit(
@@ -215,6 +254,7 @@ class GeneticEvolution:
             self.state.status = "ready"
         step = self._make_step(1, population, [], [], [], [])
         self.state.history.append(step)
+        self.updated_at = _utc_now()
         _emit(
             on_event,
             type="generation_complete",
@@ -348,6 +388,7 @@ class GeneticEvolution:
             elites,
         )
         self.state.history.append(step)
+        self.updated_at = _utc_now()
         _emit(
             on_event,
             type="generation_complete",
@@ -374,3 +415,23 @@ class GeneticEvolution:
 def _emit(callback: EventCallback | None, **event: object) -> None:
     if callback is not None:
         callback(event)
+
+
+def _next_id_after_candidates(candidates: list[Individual]) -> int:
+    numbers = [
+        int(match.group(1))
+        for candidate in candidates
+        if (match := re.fullmatch(r"I(\d+)", candidate.id))
+    ]
+    return max(numbers, default=0) + 1
+
+
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def _new_experiment_id() -> str:
+    from uuid import uuid4
+
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    return f"exp_{timestamp}_{uuid4().hex[:8]}"
