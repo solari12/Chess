@@ -1,0 +1,27 @@
+{
+  "individuals": [
+    {
+      "bank_id": "ib_fe61c333fd464ce0b73e9a0717df400a",
+      "chromosome": {
+        "bishop": 312,
+        "knight": 235,
+        "pawn": 113,
+        "queen": 973,
+        "rook": 541
+      },
+      "created_at": "2026-10-02T12:02:50Z",
+      "draws": 1,
+      "fitness": 5,
+      "games_played": 8,
+      "individual_id": "I0005",
+      "lineage": null,
+      "losses": 1,
+      "notes": "",
+      "source_experiment_id": "exp_20261002_112755_689a3e04",
+      "source_generation": 1,
+      "tags": [],
+      "wins": 6
+    }
+  ],
+  "schema_version": 1
+}
