@@ -25,7 +25,7 @@ Screenshots are placeholders until project captures are added. Put images in `do
 
 | Chess gameplay | Genetic Algorithm Laboratory |
 | --- | --- |
-| _Screenshot placeholder — `docs/images/chess-gameplay.png`_ | _Screenshot placeholder — `docs/images/genetic-lab.png`_ |
+| _Screenshot placeholder — `docs/images/chess-gameplay.png`_ | _Screenshot placeholder — `docs/images/genetic-lab.gif`_ |
 
 | Time Management | Experiment results |
 | --- | --- |
@@ -246,6 +246,5 @@ The test suites cover chess search and clock behavior, time-management data and 
 ## 🔗 Links
 
 - [Live demo](https://chesst1024.vercel.app/)
-- GitHub repository: _add repository URL_
-- Demo video: _add link_
-- Author: _add name and profile_
+- GitHub repository: https://github.com/solari12/Chess
+- Author: Nguyen Van Tuan 
