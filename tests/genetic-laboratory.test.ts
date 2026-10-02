@@ -195,7 +195,7 @@ describe("genetic laboratory page and client", () => {
     await saveGeneticExperiment();
     await loadGeneticExperiment("exp_test_001");
     await getIndividualBank();
-    await saveIndividualsToBank(["I0035", "I0038"]);
+    await saveIndividualsToBank("exp_test_001", 5, ["I0035", "I0038"]);
     await getCandidateSets();
     await saveTiedBestCandidateSet("all tied best");
 
@@ -209,7 +209,7 @@ describe("genetic laboratory page and client", () => {
       "http://127.0.0.1:8000/api/lab/genetic/candidate-sets/save-best",
     ]);
     expect(fetchMock.mock.calls[2]?.[1]).toMatchObject({ body: JSON.stringify({ experiment_id: "exp_test_001" }) });
-    expect(fetchMock.mock.calls[4]?.[1]).toMatchObject({ body: JSON.stringify({ individual_ids: ["I0035", "I0038"] }) });
+    expect(fetchMock.mock.calls[4]?.[1]).toMatchObject({ body: JSON.stringify({ experiment_id: "exp_test_001", generation: 5, individual_ids: ["I0035", "I0038"] }) });
   });
 
   it("maps offspring and replay chromosomes by stable individual ID, independent of sorting", () => {

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import random
 import tempfile
 import unittest
 from dataclasses import asdict
@@ -12,7 +11,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from app.api import genetic_lab as genetic_lab_api
-from app.api.genetic_lab import CandidateSetSaveRequest, ExperimentReference, StartExperimentRequest, StartFromBankRequest
+from app.api.genetic_lab import BankSaveRequest, CandidateSetSaveRequest, ExperimentReference, StartExperimentRequest, StartFromBankRequest
 from app.learning.genetic.evolution import GeneticEvolution
 from app.learning.genetic.models import ExperimentConfig, Individual, PieceWeights
 from app.learning.genetic import persistence
@@ -139,6 +138,33 @@ class GeneticPersistenceTests(unittest.TestCase):
         self.assertEqual({item["source_experiment_id"] for item in result["individuals"]}, {experiment.experiment_id})
         self.assertEqual(len(bank_individuals()), 4)
         self.assertEqual(result["candidate_set"]["schema_version"], persistence.SCHEMA_VERSION)
+
+    def test_bank_save_uses_the_selected_historical_generation(self) -> None:
+        experiment = self.completed_experiment()
+        old_individual = experiment.state.history[0].population[0]
+        request = BankSaveRequest(
+            experiment_id=experiment.experiment_id,
+            generation=1,
+            individual_ids=[old_individual.id],
+        )
+        with patch.object(genetic_lab_api, "_experiment", experiment):
+            saved = genetic_lab_api.save_individuals_to_bank(request)
+
+        self.assertEqual(len(saved), 1)
+        self.assertEqual(saved[0]["individual_id"], old_individual.id)
+        self.assertEqual(saved[0]["source_generation"], 1)
+        self.assertEqual(saved[0]["chromosome"], old_individual.weights.as_dict())
+
+    def test_bank_save_rejects_a_stale_experiment_selection(self) -> None:
+        from fastapi import HTTPException
+
+        experiment = self.completed_experiment()
+        request = BankSaveRequest(experiment_id="another_experiment", generation=1, individual_ids=["I0001"])
+        with patch.object(genetic_lab_api, "_experiment", experiment):
+            with self.assertRaises(HTTPException) as error:
+                genetic_lab_api.save_individuals_to_bank(request)
+
+        self.assertEqual(error.exception.status_code, 409)
 
     def test_start_from_bank_keeps_saved_genomes_and_assigns_fresh_ids_to_fillers(self) -> None:
         source_weights = PieceWeights(96, 310, 324, 558, 889)

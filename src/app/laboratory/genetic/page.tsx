@@ -92,6 +92,7 @@ export default function GeneticLaboratoryPage() {
   const [selectedBankIds, setSelectedBankIds] = useState<string[]>([]);
   const [selectedPopulationIds, setSelectedPopulationIds] = useState<string[]>([]);
   const [archiveBusy, setArchiveBusy] = useState(false);
+  const [archiveNotice, setArchiveNotice] = useState<string | null>(null);
   const [paused, setPaused] = useState(false);
   const [liveEvents, setLiveEvents] = useState<GeneticEvent[]>([]);
   const [liveTraces, setLiveTraces] = useState<CandidateGameTrace[]>([]);
@@ -174,7 +175,9 @@ export default function GeneticLaboratoryPage() {
         if (mounted) setOperation(null);
       });
     void getSavedExperiments().then(setSavedExperiments).catch(() => setSavedExperiments([]));
-    void getIndividualBank().then(setIndividualBank).catch(() => setIndividualBank([]));
+    void getIndividualBank().then(setIndividualBank).catch((reason: unknown) => {
+      if (mounted) setError(`Could not load Individual Bank: ${messageFrom(reason)}`);
+    });
     void getCandidateSets().then(setCandidateSets).catch(() => setCandidateSets([]));
     return () => {
       mounted = false;
@@ -325,13 +328,20 @@ export default function GeneticLaboratoryPage() {
   };
 
   const saveSelectedIndividuals = async () => {
-    if (!selectedPopulationIds.length) return;
+    if (!selectedPopulationIds.length || !state?.experiment_id || !snapshot) return;
     setArchiveBusy(true);
     setError(null);
+    setArchiveNotice(null);
     try {
-      await saveIndividualsToBank(selectedPopulationIds);
+      const saved = await saveIndividualsToBank(state.experiment_id, snapshot.generation, selectedPopulationIds);
+      const bank = await getIndividualBank();
+      setIndividualBank(bank);
+      const visibleBankIds = new Set(bank.map((item) => item.bank_id));
+      if (saved.some((item) => !visibleBankIds.has(item.bank_id))) {
+        throw new Error("The API accepted the save, but the bank read-back did not contain those records. Check that the frontend and backend use the same API server and data directory.");
+      }
       setSelectedPopulationIds([]);
-      setIndividualBank(await getIndividualBank());
+      setArchiveNotice(`Saved ${saved.length} individual${saved.length === 1 ? "" : "s"} to the bank.`);
     } catch (reason) {
       setError(messageFrom(reason));
     } finally {
@@ -343,12 +353,19 @@ export default function GeneticLaboratoryPage() {
     if (!state?.experiment_id || !state.population.length) return;
     setArchiveBusy(true);
     setError(null);
+    setArchiveNotice(null);
     try {
       const result = await saveTiedBestCandidateSet(`${state.experiment_id} · Gen ${state.generation} tied best`);
-      setIndividualBank(await getIndividualBank());
+      const bank = await getIndividualBank();
+      setIndividualBank(bank);
+      const visibleBankIds = new Set(bank.map((item) => item.bank_id));
+      if (result.individuals.some((item) => !visibleBankIds.has(item.bank_id))) {
+        throw new Error("The API accepted the tied-best save, but the bank read-back did not contain those records. Check that the frontend and backend use the same API server and data directory.");
+      }
       setCandidateSets(await getCandidateSets());
       setSelectedCandidateSetId(result.candidate_set.candidate_set_id);
       setSelectedBankIds(result.candidate_set.bank_ids);
+      setArchiveNotice(`Saved all ${result.individuals.length} tied-best individual${result.individuals.length === 1 ? "" : "s"} to the bank.`);
     } catch (reason) {
       setError(messageFrom(reason));
     } finally {
@@ -681,13 +698,14 @@ export default function GeneticLaboratoryPage() {
           <div>
             <p className="m-0 text-[9px] font-semibold uppercase tracking-[.15em] text-[#8c744b]">LONG-TERM GENOME STORAGE</p>
             <h2 id="individual-bank-heading" className="m-0 mt-1 text-sm font-semibold">Individual Bank</h2>
-            <p className="mb-0 mt-1 text-[11px] text-[#77776d]">Saved chromosomes remain unchanged. Select saved genomes below to seed a new experiment.</p>
+            <p className="mb-0 mt-1 text-[11px] text-[#77776d]">Saved chromosomes remain unchanged. Select saved genomes below to seed a new experiment. Checking a row selects it; use “Save selected to Individual Bank” above the population table to store it.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => void refreshArchives().catch((reason: unknown) => setError(messageFrom(reason)))} className="text-xs">Refresh Bank</Button>
             <Button onClick={startFromSelectedBank} disabled={busy || !selectedBankIds.length || selectedBankIds.length > config.population_size} className="text-xs">Create Experiment from Selected Individuals</Button>
           </div>
         </div>
+        {archiveNotice && <p aria-live="polite" className="mb-3 text-xs font-medium text-[#52633e]">{archiveNotice}</p>}
         <div className="max-h-[28rem] overflow-auto border-y border-[#d5cebf]">
           <table className="w-full min-w-[900px] border-collapse text-left text-[11px]">
             <thead className="sticky top-0 bg-[#e8e4d9] text-[9px] uppercase tracking-[.12em] text-[#67675e]">

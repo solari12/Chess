@@ -82,6 +82,8 @@ class ExperimentReference(BaseModel):
 
 
 class BankSaveRequest(BaseModel):
+    experiment_id: str
+    generation: int = Field(ge=1)
     individual_ids: list[str] = Field(min_length=1)
     tags: list[str] = Field(default_factory=list)
     notes: str = Field(default="", max_length=2_000)
@@ -299,12 +301,20 @@ def save_individuals_to_bank(request: BankSaveRequest) -> list[dict[str, Any]]:
     with _experiment_lock:
         if _experiment is None or _experiment.state.generation == 0:
             raise HTTPException(status_code=409, detail="Complete the first generation before saving individuals")
-        population_by_id = {individual.id: individual for individual in _experiment.state.population}
+        if request.experiment_id != _experiment.experiment_id:
+            raise HTTPException(status_code=409, detail="The selected individuals belong to a different experiment; refresh the population and try again")
+        generation_snapshot = next(
+            (step for step in _experiment.state.history if step.generation == request.generation),
+            None,
+        )
+        if generation_snapshot is None:
+            raise HTTPException(status_code=404, detail="The selected generation is not available in this experiment")
+        population_by_id = {individual.id: individual for individual in generation_snapshot.population}
         if len(request.individual_ids) != len(set(request.individual_ids)):
             raise HTTPException(status_code=422, detail="Selected individual IDs contain duplicates")
         selected = [population_by_id.get(individual_id) for individual_id in request.individual_ids]
         if any(individual is None for individual in selected):
-            raise HTTPException(status_code=404, detail="One or more selected individuals are not in the current population")
+            raise HTTPException(status_code=404, detail="One or more selected individuals are not in the selected generation")
         records = [
             _bank_record(_experiment, individual, request.tags, request.notes)
             for individual in selected

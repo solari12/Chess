@@ -313,9 +313,9 @@ export const loadGeneticExperiment = (experimentId: string) => request<GeneticSt
   body: JSON.stringify({ experiment_id: experimentId }),
 });
 export const getIndividualBank = () => request<BankIndividual[]>("/bank");
-export const saveIndividualsToBank = (individualIds: string[]) => request<BankIndividual[]>("/bank/save", {
+export const saveIndividualsToBank = (experimentId: string, generation: number, individualIds: string[]) => request<BankIndividual[]>("/bank/save", {
   method: "POST",
-  body: JSON.stringify({ individual_ids: individualIds }),
+  body: JSON.stringify({ experiment_id: experimentId, generation, individual_ids: individualIds }),
 });
 export const getCandidateSets = () => request<SavedCandidateSet[]>("/candidate-sets");
 export const saveTiedBestCandidateSet = (name: string) => request<{
